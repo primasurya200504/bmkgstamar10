@@ -11,20 +11,19 @@ class Guideline extends Model
 
     protected $fillable = [
         'title',
-        'content',
-        'requirements',
-        'example_data',
-        'is_active',
+        'description',
+        'type',
+        'required_documents',
+        'fee',
+        'is_active'
     ];
 
     protected $casts = [
-        'requirements' => 'array',
-        'example_data' => 'array',
-        'is_active' => 'boolean',
+        'required_documents' => 'array'
     ];
 
-    public function scopeActive($query)
+    public function applications()
     {
-        return $query->where('is_active', true);
+        return $this->hasMany(Application::class);
     }
 }

@@ -14,9 +14,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
         'phone',
-        'institution',
+        'role',
     ];
 
     protected $hidden = [
@@ -32,18 +31,13 @@ class User extends Authenticatable
         ];
     }
 
-    public function submissions()
-    {
-        return $this->hasMany(Submission::class);
-    }
-
     public function isAdmin()
     {
         return $this->role === 'admin';
     }
 
-    public function isUser()
+    public function applications()
     {
-        return $this->role === 'user';
+        return $this->hasMany(\App\Models\Application::class);
     }
 }

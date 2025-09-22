@@ -2,140 +2,148 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Submission;
+use App\Models\Application;
 use App\Models\Guideline;
-use App\Models\SubmissionFile;
+use App\Models\Payment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
     public function dashboard()
     {
-        $user = auth()->user();
-        $submissions = Submission::where('user_id', $user->id)
-            ->with('files')
-            ->latest()
+        $applications = Auth::user()->applications()
+            ->with(['guideline', 'payment', 'generatedDocuments'])
+            ->orderBy('created_at', 'desc')
             ->get();
 
-        $guidelines = Guideline::active()->get();
-
         $stats = [
-            'total' => $submissions->count(),
-            'pending' => $submissions->where('status', 'Menunggu')->count(),
-            'approved' => $submissions->whereIn('status', ['Diterima', 'Selesai'])->count(),
-            'rejected' => $submissions->where('status', 'Ditolak')->count(),
+            'pending' => $applications->where('status', 'pending')->count(),
+            'in_process' => $applications->whereIn('status', ['verified', 'payment_pending', 'paid', 'processing'])->count(),
+            'completed' => $applications->where('status', 'completed')->count(),
+            'rejected' => $applications->where('status', 'rejected')->count()
         ];
 
-        return view('user.dashboard', compact('submissions', 'guidelines', 'stats'));
+        return view('user.dashboard', compact('applications', 'stats'));
     }
 
-    public function store(Request $request)
+    // Fitur Pengajuan
+    public function guidelines(Request $request)
+    {
+        $type = $request->input('type', 'all');
+
+        $guidelines = Guideline::where('is_active', true);
+
+        if ($type !== 'all') {
+            $guidelines = $guidelines->where('type', $type);
+        }
+
+        $guidelines = $guidelines->get();
+
+        return response()->json($guidelines);
+    }
+
+    public function submitApplication(Request $request)
     {
         $request->validate([
-            'data_type' => 'required|string|max:255',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'purpose' => 'required|string',
-            'category' => 'required|in:PNBP,Non-PNBP',
-            'files.*' => 'required|file|mimes:pdf,doc,docx|max:5120', // 5MB max
+            'guideline_id' => 'required|exists:guidelines,id',
+            'type' => 'required|in:pnbp,non_pnbp',
+            'documents.*' => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120'
         ]);
 
-        $user = auth()->user();
+        $guideline = Guideline::findOrFail($request->guideline_id);
 
-        // Generate submission number
-        $submissionNumber = 'SUB-' . date('Y') . '-' . str_pad(
-            Submission::whereYear('created_at', date('Y'))->count() + 1,
-            4,
-            '0',
-            STR_PAD_LEFT
-        );
-
-        // Create submission
-        $submission = Submission::create([
-            'user_id' => $user->id,
-            'submission_number' => $submissionNumber,
-            'data_type' => $request->data_type,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'purpose' => $request->purpose,
-            'category' => $request->category,
-            'status' => 'Menunggu',
-        ]);
-
-        // Handle file uploads
-        if ($request->hasFile('files')) {
-            foreach ($request->file('files') as $file) {
-                if ($file->isValid()) {
-                    $fileName = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-                    $filePath = $file->storeAs('submissions', $fileName, 'public');
-
-                    SubmissionFile::create([
-                        'submission_id' => $submission->id,
-                        'file_name' => $file->getClientOriginalName(),
-                        'file_path' => $filePath,
-                        'file_type' => $file->getClientMimeType(),
-                        'file_size' => $file->getSize(),
-                    ]);
-                }
+        $documents = [];
+        if ($request->hasFile('documents')) {
+            foreach ($request->file('documents') as $key => $file) {
+                $filename = time() . '_' . $key . '_' . $file->getClientOriginalName();
+                $path = $file->storeAs('user_documents', $filename, 'public');
+                $documents[$key] = $path;
             }
         }
 
-        return redirect()->route('user.dashboard')
-            ->with('success', 'Pengajuan berhasil dikirim dengan nomor: ' . $submissionNumber);
-    }
-
-    public function edit(Submission $submission)
-    {
-        $this->authorize('update', $submission);
-        $guidelines = Guideline::active()->get();
-
-        return response()->json([
-            'submission' => $submission,
-            'guidelines' => $guidelines
+        Application::create([
+            'user_id' => Auth::id(),
+            'guideline_id' => $request->guideline_id,
+            'type' => $request->type,
+            'documents' => $documents,
+            'status' => 'pending'
         ]);
+
+        return response()->json(['success' => true, 'message' => 'Application submitted successfully']);
     }
 
-    public function update(Request $request, Submission $submission)
+    // Upload bukti pembayaran
+    public function uploadPaymentProof(Request $request, $id)
     {
-        $this->authorize('update', $submission);
-
         $request->validate([
-            'data_type' => 'required|string|max:255',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'purpose' => 'required|string',
-            'files.*' => 'file|mimes:pdf,doc,docx|max:5120',
+            'payment_proof' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120'
         ]);
 
-        $submission->update([
-            'data_type' => $request->data_type,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'purpose' => $request->purpose,
-            'status' => 'Menunggu', // Reset status
-        ]);
+        $application = Application::where('user_id', Auth::id())->findOrFail($id);
+        $payment = $application->payment;
 
-        // Handle new files if uploaded
-        if ($request->hasFile('files')) {
-            foreach ($request->file('files') as $file) {
-                if ($file->isValid()) {
-                    $fileName = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-                    $filePath = $file->storeAs('submissions', $fileName, 'public');
-
-                    SubmissionFile::create([
-                        'submission_id' => $submission->id,
-                        'file_name' => $file->getClientOriginalName(),
-                        'file_path' => $filePath,
-                        'file_type' => $file->getClientMimeType(),
-                        'file_size' => $file->getSize(),
-                    ]);
-                }
-            }
+        if (!$payment) {
+            return response()->json(['error' => 'No payment record found'], 404);
         }
 
-        return redirect()->route('user.dashboard')
-            ->with('success', 'Pengajuan berhasil diperbarui!');
+        if ($request->hasFile('payment_proof')) {
+            $file = $request->file('payment_proof');
+            $filename = time() . '_payment_' . $file->getClientOriginalName();
+            $path = $file->storeAs('payment_proofs', $filename, 'public');
+
+            $payment->update(['payment_proof' => $path]);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Payment proof uploaded successfully']);
+    }
+
+    // Download dokumen yang dihasilkan
+    public function downloadDocument($id)
+    {
+        $document = \App\Models\GeneratedDocument::whereHas('application', function ($query) {
+            $query->where('user_id', Auth::id());
+        })->findOrFail($id);
+
+        return Storage::disk('public')->download($document->document_path, $document->document_name);
+    }
+
+    // Fitur Profil
+    public function profile()
+    {
+        return response()->json(Auth::user()->only(['name', 'email', 'phone']));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . Auth::id(),
+            'phone' => 'nullable|string|max:15'
+        ]);
+
+        Auth::user()->update($request->only(['name', 'email', 'phone']));
+
+        return response()->json(['success' => true, 'message' => 'Profile updated successfully']);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed'
+        ]);
+
+        if (!Hash::check($request->current_password, Auth::user()->password)) {
+            return response()->json(['error' => 'Current password is incorrect'], 422);
+        }
+
+        Auth::user()->update([
+            'password' => Hash::make($request->new_password)
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Password changed successfully']);
     }
 }

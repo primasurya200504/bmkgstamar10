@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Archive extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'application_id', 'archive_date', 'notes'
+    ];
+
+    protected $casts = [
+        'archive_date' => 'date'
+    ];
+
+    public function application()
+    {
+        return $this->belongsTo(Application::class);
+    }
+}

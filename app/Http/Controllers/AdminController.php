@@ -2,118 +2,191 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Submission;
+use App\Models\Application;
 use App\Models\Guideline;
+use App\Models\Payment;
+use App\Models\Archive;
 use App\Models\User;
+use App\Models\GeneratedDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {
     public function dashboard()
     {
-        $submissions = Submission::with(['user', 'files'])->latest()->get();
-        $guidelines = Guideline::latest()->get();
-
         $stats = [
-            'total_submissions' => Submission::count(),
-            'pending_submissions' => Submission::where('status', 'Menunggu')->count(),
-            'total_users' => User::where('role', 'user')->count(),
-            'total_guidelines' => Guideline::where('is_active', true)->count(),
+            'pending_requests' => Application::where('status', 'pending')->count(),
+            'pending_payments' => Application::where('status', 'payment_pending')->count(),
+            'processing' => Application::where('status', 'processing')->count(),
+            'completed' => Application::where('status', 'completed')->count(),
+            'total_users' => User::where('role', 'user')->count()
         ];
 
-        return view('admin.dashboard', compact('submissions', 'guidelines', 'stats'));
+        $recent_applications = Application::with(['user', 'guideline'])
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
+
+        return view('admin.admin_dashboard', compact('stats', 'recent_applications'));
     }
 
-    public function updateStatus(Request $request, Submission $submission)
+    // Manajemen Permintaan
+    public function requests()
     {
-        $request->validate([
-            'status' => 'required|in:Menunggu,Diproses,Diterima,Ditolak,Selesai',
-            'admin_notes' => 'nullable|string',
-            'rejection_note' => 'nullable|string|required_if:status,Ditolak',
-            'cover_letter' => 'nullable|file|mimes:pdf|max:5120',
+        $applications = Application::with(['user', 'guideline'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return response()->json($applications);
+    }
+
+    public function verifyRequest(Request $request, $id)
+    {
+        $application = Application::findOrFail($id);
+        
+        $application->update([
+            'status' => $request->action === 'approve' ? 'verified' : 'rejected',
+            'notes' => $request->notes
         ]);
 
-        $data = [
-            'status' => $request->status,
-            'admin_notes' => $request->admin_notes,
-        ];
-
-        if ($request->status === 'Ditolak') {
-            $data['rejection_note'] = $request->rejection_note;
+        if ($request->action === 'approve' && $application->guideline->fee > 0) {
+            $application->update(['status' => 'payment_pending']);
+            
+            Payment::create([
+                'application_id' => $application->id,
+                'amount' => $application->guideline->fee,
+                'status' => 'pending'
+            ]);
         }
 
-        // Handle cover letter upload for approved submissions
-        if ($request->hasFile('cover_letter') && $request->status === 'Selesai') {
-            $file = $request->file('cover_letter');
-            $fileName = 'cover_letter_' . $submission->submission_number . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs('cover_letters', $fileName, 'public');
-            $data['cover_letter_path'] = $filePath;
+        return response()->json(['success' => true, 'message' => 'Request updated successfully']);
+    }
+
+    // Manajemen Pembayaran
+    public function payments()
+    {
+        $payments = Payment::with(['application.user', 'application.guideline'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return response()->json($payments);
+    }
+
+    public function verifyPayment(Request $request, $id)
+    {
+        $payment = Payment::findOrFail($id);
+        
+        $payment->update([
+            'status' => $request->action === 'approve' ? 'verified' : 'rejected',
+            'paid_at' => $request->action === 'approve' ? now() : null
+        ]);
+
+        if ($request->action === 'approve') {
+            $payment->application->update(['status' => 'paid']);
         }
 
-        $submission->update($data);
+        return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
+    }
 
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Status pengajuan berhasil diperbarui!');
+    // Manajemen Upload Dokumen
+    public function uploadDocument(Request $request, $id)
+    {
+        $request->validate([
+            'document' => 'required|file|mimes:pdf,doc,docx|max:10240'
+        ]);
+
+        $application = Application::findOrFail($id);
+        
+        if ($request->hasFile('document')) {
+            $file = $request->file('document');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('generated_documents', $filename, 'public');
+            
+            GeneratedDocument::create([
+                'application_id' => $application->id,
+                'document_path' => $path,
+                'document_name' => $file->getClientOriginalName()
+            ]);
+
+            $application->update(['status' => 'processing']);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Document uploaded successfully']);
+    }
+
+    public function completeApplication($id)
+    {
+        $application = Application::findOrFail($id);
+        $application->update(['status' => 'completed']);
+
+        // Auto archive
+        Archive::create([
+            'application_id' => $application->id,
+            'archive_date' => now(),
+            'notes' => 'Automatically archived upon completion'
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Application completed']);
+    }
+
+    // Manajemen Panduan
+    public function guidelines()
+    {
+        $guidelines = Guideline::orderBy('created_at', 'desc')->get();
+        return response()->json($guidelines);
     }
 
     public function storeGuideline(Request $request)
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'requirements' => 'nullable|array',
-            'example_data' => 'nullable|array',
+            'description' => 'required|string',
+            'type' => 'required|in:pnbp,non_pnbp',
+            'required_documents' => 'required|array',
+            'fee' => 'required|numeric|min:0'
         ]);
 
-        Guideline::create([
-            'title' => $request->title,
-            'content' => $request->content,
-            'requirements' => $request->requirements,
-            'example_data' => $request->example_data,
-            'is_active' => true,
-        ]);
+        Guideline::create($request->all());
 
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Panduan berhasil ditambahkan!');
+        return response()->json(['success' => true, 'message' => 'Guideline created successfully']);
     }
 
-    public function updateGuideline(Request $request, Guideline $guideline)
+    public function updateGuideline(Request $request, $id)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'requirements' => 'nullable|array',
-            'example_data' => 'nullable|array',
-        ]);
+        $guideline = Guideline::findOrFail($id);
+        $guideline->update($request->all());
 
-        $guideline->update([
-            'title' => $request->title,
-            'content' => $request->content,
-            'requirements' => $request->requirements,
-            'example_data' => $request->example_data,
-        ]);
-
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Panduan berhasil diperbarui!');
+        return response()->json(['success' => true, 'message' => 'Guideline updated successfully']);
     }
 
-    public function destroyGuideline(Guideline $guideline)
+    // Manajemen Arsip
+    public function archives(Request $request)
     {
-        $guideline->delete();
+        $query = Archive::with(['application.user', 'application.guideline']);
 
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Panduan berhasil dihapus!');
-    }
-
-    public function downloadFile($fileId)
-    {
-        $file = \App\Models\SubmissionFile::findOrFail($fileId);
-
-        if (!Storage::disk('public')->exists($file->file_path)) {
-            abort(404, 'File tidak ditemukan');
+        if ($request->month) {
+            $query->whereMonth('archive_date', $request->month);
         }
 
-        return Storage::disk('public')->download($file->file_path, $file->file_name);
+        if ($request->year) {
+            $query->whereYear('archive_date', $request->year);
+        }
+
+        $archives = $query->orderBy('archive_date', 'desc')->paginate(20);
+
+        return response()->json($archives);
+    }
+
+    // Manajemen Pengguna
+    public function users()
+    {
+        $users = User::where('role', 'user')
+            ->select('id', 'name', 'email', 'phone', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return response()->json($users);
     }
 }
