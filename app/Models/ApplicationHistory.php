@@ -10,13 +10,8 @@ class ApplicationHistory extends Model
     use HasFactory;
 
     protected $fillable = [
-        'application_id',
-        'action',
-        'actor_type',
-        'actor_id',
-        'title',
-        'description',
-        'metadata'
+        'application_id', 'action', 'actor_type', 'actor_id',
+        'title', 'description', 'metadata', 'created_at'
     ];
 
     protected $casts = [
@@ -24,10 +19,9 @@ class ApplicationHistory extends Model
         'created_at' => 'datetime'
     ];
 
-    public $timestamps = false;
+    public $timestamps = false; // Karena kita hanya gunakan created_at
 
-    protected $dates = ['created_at'];
-
+    // Relationships
     public function application()
     {
         return $this->belongsTo(Application::class);
@@ -38,17 +32,41 @@ class ApplicationHistory extends Model
         return $this->belongsTo(User::class, 'actor_id');
     }
 
-    public static function log($applicationId, $action, $actorType, $actorId, $title, $description = null, $metadata = null)
+    // Helper untuk icon berdasarkan action
+    public function getIconAttribute()
     {
-        return self::create([
-            'application_id' => $applicationId,
-            'action' => $action,
-            'actor_type' => $actorType,
-            'actor_id' => $actorId,
-            'title' => $title,
-            'description' => $description,
-            'metadata' => $metadata,
-            'created_at' => now()
-        ]);
+        $icons = [
+            'submitted' => 'paper-airplane',
+            'approved_with_payment' => 'check-circle',
+            'approved_no_payment' => 'check-circle',
+            'rejected' => 'x-circle',
+            'payment_uploaded' => 'credit-card',
+            'payment_verified' => 'badge-check',
+            'payment_rejected' => 'x-circle',
+            'document_uploaded' => 'document-arrow-up',
+            'completed' => 'check-badge',
+            'archived' => 'archive-box'
+        ];
+
+        return $icons[$this->action] ?? 'information-circle';
+    }
+
+    // Helper untuk warna berdasarkan action
+    public function getColorAttribute()
+    {
+        $colors = [
+            'submitted' => 'blue',
+            'approved_with_payment' => 'green',
+            'approved_no_payment' => 'green',
+            'rejected' => 'red',
+            'payment_uploaded' => 'yellow',
+            'payment_verified' => 'green',
+            'payment_rejected' => 'red',
+            'document_uploaded' => 'indigo',
+            'completed' => 'green',
+            'archived' => 'gray'
+        ];
+
+        return $colors[$this->action] ?? 'gray';
     }
 }

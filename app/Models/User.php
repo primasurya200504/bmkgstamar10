@@ -13,9 +13,10 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'password',
         'phone',
         'role',
+        'password',
+        'email_verified_at'
     ];
 
     protected $hidden = [
@@ -31,13 +32,25 @@ class User extends Authenticatable
         ];
     }
 
+    // Relationships
+    public function applications()
+    {
+        return $this->hasMany(Application::class);
+    }
+
+    public function actorHistories()
+    {
+        return $this->hasMany(ApplicationHistory::class, 'actor_id');
+    }
+
+    // Helper methods
     public function isAdmin()
     {
         return $this->role === 'admin';
     }
 
-    public function applications()
+    public function isUser()
     {
-        return $this->hasMany(\App\Models\Application::class);
+        return $this->role === 'user';
     }
 }

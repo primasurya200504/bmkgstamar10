@@ -13,7 +13,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use ZipArchive;
 
 class AdminController extends Controller
 {
@@ -85,20 +87,6 @@ class AdminController extends Controller
                             'amount' => $application->guideline->fee,
                             'status' => 'pending'
                         ]);
-
-                        // Log billing creation
-                        $application->logHistory(
-                            'billing_generated',
-                            'system',
-                            null,
-                            'Tagihan Pembayaran Dibuat',
-                            "Sistem membuat tagihan pembayaran PNBP sebesar Rp " . number_format($application->guideline->fee),
-                            [
-                                'amount' => $application->guideline->fee,
-                                'billing_type' => 'PNBP',
-                                'payment_method' => 'Upload Bukti Transfer'
-                            ]
-                        );
                     }
                 } else {
                     // Non-PNBP atau PNBP gratis -> langsung ke paid
@@ -217,7 +205,7 @@ class AdminController extends Controller
         }
     }
 
-    // Method documents yang diperbaiki
+    // Documents method yang diperbaiki
     public function documents()
     {
         try {
@@ -233,12 +221,12 @@ class AdminController extends Controller
         }
     }
 
-    // Method uploadDocument yang diperbaiki
+    // UPDATED: Upload Document dengan storage terorganisir
     public function uploadDocument(Request $request, $id)
     {
         try {
             $request->validate([
-                'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx|max:10240',
+                'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx|max:10240', // 10MB
                 'document_name' => 'required|string|max:255'
             ]);
 
@@ -246,9 +234,17 @@ class AdminController extends Controller
 
             if ($request->hasFile('document')) {
                 $file = $request->file('document');
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('generated_documents', $filename, 'public');
+                $filename = 'result_' . $application->application_number . '_' . time() . '.' . $file->getClientOriginalExtension();
+                
+                // STORAGE TERORGANISIR: Folder terpisah berdasarkan tipe dan bulan
+                $folderPath = $application->type === 'pnbp' ? 'results/pnbp' : 'results/non_pnbp';
+                $yearMonth = date('Y/m');
+                $fullPath = $folderPath . '/' . $yearMonth;
+                
+                // Store file dengan path terorganisir
+                $path = $file->storeAs($fullPath, $filename, 'public');
 
+                // Save to generated_documents table
                 GeneratedDocument::create([
                     'application_id' => $application->id,
                     'document_path' => $path,
@@ -261,10 +257,11 @@ class AdminController extends Controller
                     'admin',
                     Auth::id(),
                     'Dokumen Data/Surat Diupload',
-                    "Admin mengupload dokumen '{$request->document_name}' untuk user. File siap diunduh.",
+                    "Admin mengupload dokumen '{$request->document_name}' untuk user. File disimpan di folder {$fullPath}.",
                     [
                         'document_name' => $request->document_name,
                         'file_path' => $path,
+                        'storage_folder' => $fullPath,
                         'file_original_name' => $file->getClientOriginalName(),
                         'file_size' => $file->getSize(),
                         'uploaded_by' => Auth::user()->name
@@ -284,7 +281,8 @@ class AdminController extends Controller
                     [
                         'completion_date' => now(),
                         'total_process_days' => $application->created_at->diffInDays(now()),
-                        'completed_by' => Auth::user()->name
+                        'completed_by' => Auth::user()->name,
+                        'document_location' => $fullPath
                     ]
                 );
 
@@ -305,37 +303,25 @@ class AdminController extends Controller
                     [
                         'archive_date' => now(),
                         'auto_archived' => true,
-                        'archive_reason' => 'Completion'
+                        'archive_reason' => 'Completion',
+                        'storage_location' => $fullPath
                     ]
                 );
-            }
 
-            return response()->json(['success' => true, 'message' => 'Document uploaded successfully']);
+                return response()->json([
+                    'success' => true, 
+                    'message' => 'Document uploaded successfully',
+                    'path' => $path,
+                    'storage_folder' => $fullPath
+                ]);
+            }
         } catch (\Exception $e) {
+            Log::error('Document upload failed: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to upload document: ' . $e->getMessage()], 500);
         }
     }
 
-    public function completeApplication($id)
-    {
-        try {
-            $application = Application::findOrFail($id);
-            $application->update(['status' => 'completed']);
-
-            // Auto archive
-            Archive::create([
-                'application_id' => $application->id,
-                'archive_date' => now(),
-                'notes' => 'Manually completed by admin'
-            ]);
-
-            return response()->json(['success' => true, 'message' => 'Application completed']);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to complete application'], 500);
-        }
-    }
-
-    // Enhanced archives method dengan detailed history
+    // Enhanced archives method
     public function archives(Request $request)
     {
         try {
@@ -357,15 +343,6 @@ class AdminController extends Controller
                 $query->whereYear('created_at', $request->year);
             }
 
-            // Filter berdasarkan rentang tanggal
-            if ($request->date_from) {
-                $query->whereDate('created_at', '>=', $request->date_from);
-            }
-
-            if ($request->date_to) {
-                $query->whereDate('created_at', '<=', $request->date_to);
-            }
-
             // Filter berdasarkan tipe
             if ($request->type) {
                 $query->where('type', $request->type);
@@ -379,7 +356,7 @@ class AdminController extends Controller
         }
     }
 
-    // Method baru untuk detail timeline
+    // Method untuk detail timeline
     public function getApplicationTimeline($id)
     {
         try {
@@ -400,23 +377,55 @@ class AdminController extends Controller
         }
     }
 
-    // Download complete archive (optional)
+    // UPDATED: Download complete archive dengan file terorganisir
     public function downloadArchive($id)
     {
         try {
-            $application = Application::with(['generatedDocuments', 'payment'])->findOrFail($id);
+            $application = Application::with(['generatedDocuments', 'payment', 'user'])->findOrFail($id);
 
-            // Create ZIP file with all related documents
-            $zip = new \ZipArchive();
+            // Create temporary directory
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+
+            // Create ZIP file
+            $zip = new ZipArchive();
             $zipFileName = "archive_{$application->application_number}_" . now()->format('Y-m-d') . ".zip";
-            $zipPath = storage_path('app/temp/' . $zipFileName);
+            $zipPath = $tempDir . '/' . $zipFileName;
 
-            if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
-                // Add generated documents
+            if ($zip->open($zipPath, ZipArchive::CREATE) === TRUE) {
+                // Add application info as JSON
+                $appInfo = [
+                    'application_number' => $application->application_number,
+                    'user_name' => $application->user->name,
+                    'user_email' => $application->user->email,
+                    'guideline' => $application->guideline->title,
+                    'type' => $application->type,
+                    'start_date' => $application->start_date,
+                    'end_date' => $application->end_date,
+                    'purpose' => $application->purpose,
+                    'status' => $application->status,
+                    'created_at' => $application->created_at,
+                    'completed_at' => $application->updated_at
+                ];
+                $zip->addFromString('application_info.json', json_encode($appInfo, JSON_PRETTY_PRINT));
+
+                // Add original user documents
+                if ($application->documents && is_array($application->documents)) {
+                    foreach ($application->documents as $index => $docPath) {
+                        $filePath = storage_path('app/public/' . $docPath);
+                        if (file_exists($filePath)) {
+                            $zip->addFile($filePath, "user_documents/document_" . ($index + 1) . "_" . basename($filePath));
+                        }
+                    }
+                }
+
+                // Add generated documents (results)
                 foreach ($application->generatedDocuments as $doc) {
                     $filePath = storage_path('app/public/' . $doc->document_path);
                     if (file_exists($filePath)) {
-                        $zip->addFile($filePath, 'documents/' . $doc->document_name);
+                        $zip->addFile($filePath, 'results/' . $doc->document_name);
                     }
                 }
 
@@ -430,16 +439,16 @@ class AdminController extends Controller
 
                 $zip->close();
 
-                return response()->download($zipPath)->deleteFileAfterSend();
+                return response()->download($zipPath)->deleteFileAfterSend(true);
             }
 
             return response()->json(['error' => 'Failed to create archive'], 500);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to download archive'], 500);
+            return response()->json(['error' => 'Failed to download archive: ' . $e->getMessage()], 500);
         }
     }
 
-    // Rest of the methods remain the same (guidelines, users, etc.)
+    // Rest of methods remain the same
     public function guidelines()
     {
         try {
@@ -521,7 +530,7 @@ class AdminController extends Controller
         }
     }
 
-    // Manajemen Pengguna
+    // User management methods
     public function users()
     {
         try {
