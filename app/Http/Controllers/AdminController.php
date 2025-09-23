@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
+use App\Models\ApplicationHistory;
 use App\Models\Guideline;
 use App\Models\Payment;
 use App\Models\Archive;
@@ -11,6 +12,7 @@ use App\Models\GeneratedDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class AdminController extends Controller
@@ -30,7 +32,6 @@ class AdminController extends Controller
             ->take(10)
             ->get();
 
-        // PERBAIKAN: Ubah nama view dari admin_dashboard ke dashboard
         return view('admin.admin_dashboard', compact('stats', 'recent_applications'));
     }
 
@@ -53,28 +54,94 @@ class AdminController extends Controller
         try {
             $application = Application::findOrFail($id);
 
-            $application->update([
-                'status' => $request->action === 'approve' ? 'verified' : 'rejected',
-                'notes' => $request->notes
-            ]);
-
-            // PERBAIKAN: Cek apakah fee > 0 untuk membuat payment
-            if ($request->action === 'approve' && $application->guideline->fee > 0) {
-                $application->update(['status' => 'payment_pending']);
-
-                // Cek apakah payment sudah ada
-                $existingPayment = Payment::where('application_id', $application->id)->first();
-
-                if (!$existingPayment) {
-                    Payment::create([
-                        'application_id' => $application->id,
-                        'amount' => $application->guideline->fee,
-                        'status' => 'pending'
+            if ($request->action === 'approve') {
+                if ($application->type === 'pnbp' && $application->guideline->fee > 0) {
+                    // PNBP dengan biaya -> ke payment_pending
+                    $application->update([
+                        'status' => 'payment_pending',
+                        'notes' => $request->notes
                     ]);
+
+                    // Log approval dengan payment
+                    $application->logHistory(
+                        'approved_with_payment',
+                        'admin',
+                        Auth::id(),
+                        'Pengajuan Disetujui - Menunggu Pembayaran',
+                        "Admin menyetujui pengajuan. Biaya PNBP: Rp " . number_format($application->guideline->fee) . ". " . ($request->notes ?: ''),
+                        [
+                            'admin_notes' => $request->notes,
+                            'fee_amount' => $application->guideline->fee,
+                            'payment_required' => true,
+                            'approved_by' => Auth::user()->name
+                        ]
+                    );
+
+                    // Cek apakah payment sudah ada
+                    $existingPayment = Payment::where('application_id', $application->id)->first();
+                    if (!$existingPayment) {
+                        Payment::create([
+                            'application_id' => $application->id,
+                            'amount' => $application->guideline->fee,
+                            'status' => 'pending'
+                        ]);
+
+                        // Log billing creation
+                        $application->logHistory(
+                            'billing_generated',
+                            'system',
+                            null,
+                            'Tagihan Pembayaran Dibuat',
+                            "Sistem membuat tagihan pembayaran PNBP sebesar Rp " . number_format($application->guideline->fee),
+                            [
+                                'amount' => $application->guideline->fee,
+                                'billing_type' => 'PNBP',
+                                'payment_method' => 'Upload Bukti Transfer'
+                            ]
+                        );
+                    }
+                } else {
+                    // Non-PNBP atau PNBP gratis -> langsung ke paid
+                    $application->update([
+                        'status' => 'paid',
+                        'notes' => $request->notes
+                    ]);
+
+                    // Log approval tanpa payment
+                    $application->logHistory(
+                        'approved_no_payment',
+                        'admin',
+                        Auth::id(),
+                        'Pengajuan Disetujui - Non-PNBP',
+                        'Admin menyetujui pengajuan Non-PNBP (gratis untuk penelitian/akademik). ' . ($request->notes ?: ''),
+                        [
+                            'admin_notes' => $request->notes,
+                            'fee_amount' => 0,
+                            'payment_required' => false,
+                            'approved_by' => Auth::user()->name
+                        ]
+                    );
                 }
-            } elseif ($request->action === 'approve' && $application->guideline->fee == 0) {
-                // Jika fee 0, langsung ke status paid
-                $application->update(['status' => 'paid']);
+            } else {
+                // Rejected
+                $application->update([
+                    'status' => 'rejected',
+                    'notes' => $request->notes
+                ]);
+
+                // Log rejection
+                $application->logHistory(
+                    'rejected',
+                    'admin',
+                    Auth::id(),
+                    'Pengajuan Ditolak',
+                    'Admin menolak pengajuan dengan alasan: ' . ($request->notes ?: 'Tidak memenuhi persyaratan'),
+                    [
+                        'admin_notes' => $request->notes,
+                        'rejection_reason' => $request->notes,
+                        'rejected_by' => Auth::user()->name
+                    ]
+                );
             }
 
             return response()->json(['success' => true, 'message' => 'Request updated successfully']);
@@ -110,8 +177,38 @@ class AdminController extends Controller
 
             if ($request->action === 'approve') {
                 $payment->application->update(['status' => 'paid']);
+
+                // Log payment verification
+                $payment->application->logHistory(
+                    'payment_verified',
+                    'admin',
+                    Auth::id(),
+                    'Pembayaran Diverifikasi',
+                    "Admin memverifikasi pembayaran PNBP sebesar Rp " . number_format($payment->amount) . " dan mengubah status menjadi 'Sudah Bayar'",
+                    [
+                        'amount' => $payment->amount,
+                        'payment_method' => 'Upload Bukti Transfer',
+                        'verified_at' => now(),
+                        'verified_by' => Auth::user()->name,
+                        'payment_proof_file' => $payment->payment_proof
+                    ]
+                );
             } else {
                 $payment->application->update(['status' => 'payment_pending']);
+
+                // Log payment rejection
+                $payment->application->logHistory(
+                    'payment_rejected',
+                    'admin',
+                    Auth::id(),
+                    'Pembayaran Ditolak',
+                    'Admin menolak bukti pembayaran yang diupload user karena tidak valid atau tidak sesuai',
+                    [
+                        'amount' => $payment->amount,
+                        'rejection_reason' => 'Bukti pembayaran tidak valid',
+                        'rejected_by' => Auth::user()->name
+                    ]
+                );
             }
 
             return response()->json(['success' => true, 'message' => 'Payment updated successfully']);
@@ -120,7 +217,7 @@ class AdminController extends Controller
         }
     }
 
-    // TAMBAHAN: Method documents untuk mendukung dashboard
+    // Method documents yang diperbaiki
     public function documents()
     {
         try {
@@ -136,13 +233,13 @@ class AdminController extends Controller
         }
     }
 
-    // Manajemen Upload Dokumen
+    // Method uploadDocument yang diperbaiki
     public function uploadDocument(Request $request, $id)
     {
         try {
             $request->validate([
-                'document' => 'required|file|mimes:pdf,doc,docx|max:10240',
-                'document_name' => 'nullable|string|max:255'
+                'document' => 'required|file|mimes:pdf,doc,docx,xls,xlsx|max:10240',
+                'document_name' => 'required|string|max:255'
             ]);
 
             $application = Application::findOrFail($id);
@@ -155,10 +252,41 @@ class AdminController extends Controller
                 GeneratedDocument::create([
                     'application_id' => $application->id,
                     'document_path' => $path,
-                    'document_name' => $request->document_name ?? $file->getClientOriginalName()
+                    'document_name' => $request->document_name
                 ]);
 
+                // Log document upload
+                $application->logHistory(
+                    'document_uploaded',
+                    'admin',
+                    Auth::id(),
+                    'Dokumen Data/Surat Diupload',
+                    "Admin mengupload dokumen '{$request->document_name}' untuk user. File siap diunduh.",
+                    [
+                        'document_name' => $request->document_name,
+                        'file_path' => $path,
+                        'file_original_name' => $file->getClientOriginalName(),
+                        'file_size' => $file->getSize(),
+                        'uploaded_by' => Auth::user()->name
+                    ]
+                );
+
+                // Update status ke completed
                 $application->update(['status' => 'completed']);
+
+                // Log completion
+                $application->logHistory(
+                    'completed',
+                    'admin',
+                    Auth::id(),
+                    'Pengajuan Selesai',
+                    'Seluruh proses pengajuan telah selesai. User dapat mengunduh dokumen dari dashboard.',
+                    [
+                        'completion_date' => now(),
+                        'total_process_days' => $application->created_at->diffInDays(now()),
+                        'completed_by' => Auth::user()->name
+                    ]
+                );
 
                 // Auto archive
                 Archive::create([
@@ -166,11 +294,25 @@ class AdminController extends Controller
                     'archive_date' => now(),
                     'notes' => 'Automatically archived upon completion'
                 ]);
+
+                // Log archiving
+                $application->logHistory(
+                    'archived',
+                    'system',
+                    null,
+                    'Pengajuan Diarsipkan',
+                    'Sistem otomatis mengarsipkan pengajuan yang telah selesai ke dalam database arsip.',
+                    [
+                        'archive_date' => now(),
+                        'auto_archived' => true,
+                        'archive_reason' => 'Completion'
+                    ]
+                );
             }
 
             return response()->json(['success' => true, 'message' => 'Document uploaded successfully']);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to upload document'], 500);
+            return response()->json(['error' => 'Failed to upload document: ' . $e->getMessage()], 500);
         }
     }
 
@@ -184,7 +326,7 @@ class AdminController extends Controller
             Archive::create([
                 'application_id' => $application->id,
                 'archive_date' => now(),
-                'notes' => 'Automatically archived upon completion'
+                'notes' => 'Manually completed by admin'
             ]);
 
             return response()->json(['success' => true, 'message' => 'Application completed']);
@@ -193,7 +335,111 @@ class AdminController extends Controller
         }
     }
 
-    // Manajemen Panduan
+    // Enhanced archives method dengan detailed history
+    public function archives(Request $request)
+    {
+        try {
+            $query = Application::with([
+                'user',
+                'guideline',
+                'histories.actor',
+                'payment',
+                'generatedDocuments'
+            ])->where('status', 'completed');
+
+            // Filter berdasarkan bulan
+            if ($request->month) {
+                $query->whereMonth('created_at', $request->month);
+            }
+
+            // Filter berdasarkan tahun
+            if ($request->year) {
+                $query->whereYear('created_at', $request->year);
+            }
+
+            // Filter berdasarkan rentang tanggal
+            if ($request->date_from) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+
+            if ($request->date_to) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
+
+            // Filter berdasarkan tipe
+            if ($request->type) {
+                $query->where('type', $request->type);
+            }
+
+            $applications = $query->orderBy('created_at', 'desc')->paginate(20);
+
+            return response()->json($applications);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load archives'], 500);
+        }
+    }
+
+    // Method baru untuk detail timeline
+    public function getApplicationTimeline($id)
+    {
+        try {
+            $application = Application::with([
+                'user',
+                'guideline',
+                'histories.actor',
+                'payment',
+                'generatedDocuments'
+            ])->findOrFail($id);
+
+            return response()->json([
+                'application' => $application,
+                'timeline' => $application->histories
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load timeline'], 500);
+        }
+    }
+
+    // Download complete archive (optional)
+    public function downloadArchive($id)
+    {
+        try {
+            $application = Application::with(['generatedDocuments', 'payment'])->findOrFail($id);
+
+            // Create ZIP file with all related documents
+            $zip = new \ZipArchive();
+            $zipFileName = "archive_{$application->application_number}_" . now()->format('Y-m-d') . ".zip";
+            $zipPath = storage_path('app/temp/' . $zipFileName);
+
+            if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
+                // Add generated documents
+                foreach ($application->generatedDocuments as $doc) {
+                    $filePath = storage_path('app/public/' . $doc->document_path);
+                    if (file_exists($filePath)) {
+                        $zip->addFile($filePath, 'documents/' . $doc->document_name);
+                    }
+                }
+
+                // Add payment proof if exists
+                if ($application->payment && $application->payment->payment_proof) {
+                    $paymentProofPath = storage_path('app/public/' . $application->payment->payment_proof);
+                    if (file_exists($paymentProofPath)) {
+                        $zip->addFile($paymentProofPath, 'payment_proof/' . basename($paymentProofPath));
+                    }
+                }
+
+                $zip->close();
+
+                return response()->download($zipPath)->deleteFileAfterSend();
+            }
+
+            return response()->json(['error' => 'Failed to create archive'], 500);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to download archive'], 500);
+        }
+    }
+
+    // Rest of the methods remain the same (guidelines, users, etc.)
     public function guidelines()
     {
         try {
@@ -223,7 +469,6 @@ class AdminController extends Controller
         }
     }
 
-    // TAMBAHAN: Method showGuideline
     public function showGuideline($id)
     {
         try {
@@ -254,13 +499,11 @@ class AdminController extends Controller
         }
     }
 
-    // TAMBAHAN: Method destroyGuideline
     public function destroyGuideline($id)
     {
         try {
             $guideline = Guideline::findOrFail($id);
 
-            // Check if guideline is being used
             if ($guideline->applications()->exists()) {
                 return response()->json([
                     'success' => false,
@@ -275,28 +518,6 @@ class AdminController extends Controller
                 'success' => false,
                 'message' => 'Error deleting guideline: ' . $e->getMessage()
             ], 500);
-        }
-    }
-
-    // Manajemen Arsip
-    public function archives(Request $request)
-    {
-        try {
-            $query = Archive::with(['application.user', 'application.guideline']);
-
-            if ($request->month) {
-                $query->whereMonth('archive_date', $request->month);
-            }
-
-            if ($request->year) {
-                $query->whereYear('archive_date', $request->year);
-            }
-
-            $archives = $query->orderBy('archive_date', 'desc')->paginate(20);
-
-            return response()->json($archives);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to load archives'], 500);
         }
     }
 
@@ -315,7 +536,6 @@ class AdminController extends Controller
         }
     }
 
-    // TAMBAHAN: CRUD User Methods
     public function createUser(Request $request)
     {
         try {
@@ -373,7 +593,6 @@ class AdminController extends Controller
         try {
             $user = User::findOrFail($id);
 
-            // Check if user has applications
             if ($user->applications()->exists()) {
                 return response()->json([
                     'success' => false,

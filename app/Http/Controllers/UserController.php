@@ -29,19 +29,15 @@ class UserController extends Controller
         return view('user.dashboard', compact('applications', 'stats'));
     }
 
-    // Fitur Pengajuan
+    // PERBAIKAN: Guidelines tanpa filter type
     public function guidelines(Request $request)
     {
         try {
-            $type = $request->input('type', 'all');
-
-            $guidelines = Guideline::where('is_active', true);
-
-            if ($type !== 'all') {
-                $guidelines = $guidelines->where('type', $type);
-            }
-
-            $guidelines = $guidelines->get();
+            // Semua guidelines ditampilkan untuk kedua kategori
+            // Yang berbeda hanya persyaratan dokumen dan biaya
+            $guidelines = Guideline::where('is_active', true)
+                ->orderBy('title', 'asc')
+                ->get();
 
             return response()->json($guidelines);
         } catch (\Exception $e) {
@@ -55,11 +51,15 @@ class UserController extends Controller
             $request->validate([
                 'guideline_id' => 'required|exists:guidelines,id',
                 'type' => 'required|in:pnbp,non_pnbp',
+                'tanggal_mulai' => 'required|date',
+                'tanggal_selesai' => 'required|date|after_or_equal:tanggal_mulai',
+                'keperluan' => 'required|string|max:1000',
                 'documents.*' => 'required|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120'
             ]);
 
             $guideline = Guideline::findOrFail($request->guideline_id);
 
+            // Handle uploaded documents
             $documents = [];
             if ($request->hasFile('documents')) {
                 foreach ($request->file('documents') as $key => $file) {
@@ -69,18 +69,22 @@ class UserController extends Controller
                 }
             }
 
-            // PERBAIKAN: Generate application_number
+            // Generate application number
             $lastApplication = Application::latest()->first();
             $lastNumber = $lastApplication ? intval(substr($lastApplication->application_number, -4)) : 0;
             $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
             $applicationNumber = 'BMKG' . date('md') . '/' . date('Y') . '/' . $newNumber;
 
+            // Create application with additional fields
             Application::create([
                 'user_id' => Auth::id(),
                 'guideline_id' => $request->guideline_id,
                 'application_number' => $applicationNumber,
                 'type' => $request->type,
                 'documents' => $documents,
+                'start_date' => $request->tanggal_mulai,
+                'end_date' => $request->tanggal_selesai,
+                'purpose' => $request->keperluan,
                 'status' => 'pending'
             ]);
 
@@ -90,7 +94,6 @@ class UserController extends Controller
         }
     }
 
-    // Upload bukti pembayaran
     public function uploadPaymentProof(Request $request, $id)
     {
         try {
@@ -100,13 +103,16 @@ class UserController extends Controller
 
             $application = Application::where('user_id', Auth::id())->findOrFail($id);
 
-            // PERBAIKAN: Cari atau buat payment record
+            // Cari atau buat payment record
             $payment = Payment::where('application_id', $application->id)->first();
 
             if (!$payment) {
+                // Untuk Non-PNBP, fee = 0
+                $fee = ($application->type === 'non_pnbp') ? 0 : $application->guideline->fee;
+
                 $payment = Payment::create([
                     'application_id' => $application->id,
-                    'amount' => $application->guideline->fee,
+                    'amount' => $fee,
                     'status' => 'pending'
                 ]);
             }
@@ -121,7 +127,6 @@ class UserController extends Controller
                     'status' => 'pending'
                 ]);
 
-                // Update application status
                 $application->update(['status' => 'payment_pending']);
             }
 
@@ -131,7 +136,6 @@ class UserController extends Controller
         }
     }
 
-    // Download dokumen yang dihasilkan
     public function downloadDocument($id)
     {
         try {
@@ -151,7 +155,6 @@ class UserController extends Controller
         }
     }
 
-    // TAMBAHAN: Method history
     public function history()
     {
         try {
@@ -166,7 +169,6 @@ class UserController extends Controller
         }
     }
 
-    // Fitur Profil
     public function profile()
     {
         try {

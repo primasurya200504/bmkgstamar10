@@ -23,12 +23,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
         Route::post('/payments/{id}/verify', [AdminController::class, 'verifyPayment'])->name('payments.verify');
         
-        // Upload Dokumen
+        // Upload Dokumen Routes
         Route::get('/documents', [AdminController::class, 'documents'])->name('documents');
         Route::post('/documents/{id}/upload', [AdminController::class, 'uploadDocument'])->name('documents.upload');
         
         // Manajemen Aplikasi
         Route::post('/applications/{id}/complete', [AdminController::class, 'completeApplication'])->name('applications.complete');
+        
+        // TAMBAHAN BARU: Timeline dan Archive Download Routes
+        Route::get('/applications/{id}/timeline', [AdminController::class, 'getApplicationTimeline'])->name('applications.timeline');
+        Route::get('/applications/{id}/download-archive', [AdminController::class, 'downloadArchive'])->name('applications.download-archive');
         
         // Manajemen Panduan (CRUD lengkap)
         Route::get('/guidelines', [AdminController::class, 'guidelines'])->name('guidelines');

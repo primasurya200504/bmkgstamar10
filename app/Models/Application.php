@@ -15,14 +15,22 @@ class Application extends Model
         'application_number',
         'type',
         'documents',
+        'start_date',
+        'end_date',
+        'purpose',
         'status',
         'notes'
     ];
 
     protected $casts = [
-        'documents' => 'array'
+        'documents' => 'array',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 
+    // Relations
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -43,17 +51,23 @@ class Application extends Model
         return $this->hasMany(GeneratedDocument::class);
     }
 
-    public function archive()
+    // TAMBAHAN: Relasi ke histories
+    public function histories()
     {
-        return $this->hasOne(Archive::class);
+        return $this->hasMany(ApplicationHistory::class)->orderBy('created_at', 'desc');
     }
 
-    protected static function boot()
+    // Helper method untuk log history
+    public function logHistory($action, $actorType, $actorId, $title, $description = null, $metadata = null)
     {
-        parent::boot();
-
-        static::creating(function ($application) {
-            $application->application_number = 'APP-' . date('Ymd') . '-' . str_pad(static::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
-        });
+        return ApplicationHistory::log(
+            $this->id,
+            $action,
+            $actorType,
+            $actorId,
+            $title,
+            $description,
+            $metadata
+        );
     }
 }
