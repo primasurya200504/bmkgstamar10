@@ -19,25 +19,124 @@ use ZipArchive;
 
 class AdminController extends Controller
 {
+    // PERBAIKAN UTAMA: Method dashboard untuk mengembalikan object, bukan array
     public function dashboard()
     {
-        $stats = [
-            'pending_requests' => Application::where('status', 'pending')->count(),
-            'pending_payments' => Application::where('status', 'payment_pending')->count(),
-            'processing' => Application::where('status', 'processing')->count(),
-            'completed' => Application::where('status', 'completed')->count(),
-            'total_users' => User::where('role', 'user')->count()
-        ];
+        try {
+            $stats = [
+                'pending_requests' => Application::where('status', 'pending')->count(),
+                'pending_payments' => Application::where('status', 'payment_pending')->count(),
+                'processing' => Application::where('status', 'processing')->count(),
+                'completed' => Application::where('status', 'completed')->count(),
+                'total_users' => User::where('role', 'user')->count()
+            ];
 
-        $recent_applications = Application::with(['user', 'guideline'])
-            ->orderBy('created_at', 'desc')
-            ->take(10)
-            ->get();
+            // PERBAIKAN: Kembalikan Collection object, bukan array
+            $recent_applications = Application::with(['user', 'guideline'])
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get();
 
-        return view('admin.admin_dashboard', compact('stats', 'recent_applications'));
+            // Tambahkan computed attributes ke setiap object agar view bisa mengaksesnya
+            $recent_applications->each(function ($app) {
+                // Tambahkan attributes virtual yang bisa diakses di view
+                $app->type_label = $app->type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)';
+                $app->status_label = $this->getStatusLabel($app->status);
+                $app->created_at_formatted = $app->created_at->format('d/m/Y H:i');
+                $app->date_range_display = ($app->start_date && $app->end_date)
+                    ? $app->start_date->format('d/m/Y') . ' - ' . $app->end_date->format('d/m/Y')
+                    : 'Tanggal tidak tersedia';
+                $app->duration_days = ($app->start_date && $app->end_date)
+                    ? $app->start_date->diffInDays($app->end_date) + 1
+                    : 0;
+                $app->documents_count = is_array($app->documents) ? count($app->documents) : 0;
+            });
+
+            return view('admin.admin_dashboard', compact('stats', 'recent_applications'));
+        } catch (\Exception $e) {
+            Log::error('Dashboard error: ' . $e->getMessage());
+
+            // Fallback jika ada error
+            $stats = [
+                'pending_requests' => 0,
+                'pending_payments' => 0,
+                'processing' => 0,
+                'completed' => 0,
+                'total_users' => 0
+            ];
+            $recent_applications = collect([]);
+
+            return view('admin.admin_dashboard', compact('stats', 'recent_applications'));
+        }
     }
 
-    // Manajemen Permintaan
+    // TAMBAHAN: Helper method untuk status label
+    private function getStatusLabel($status)
+    {
+        $labels = [
+            'pending' => 'Menunggu Verifikasi',
+            'verified' => 'Terverifikasi',
+            'payment_pending' => 'Menunggu Pembayaran',
+            'paid' => 'Sudah Bayar',
+            'processing' => 'Sedang Diproses',
+            'completed' => 'Selesai',
+            'rejected' => 'Ditolak',
+            'cancelled' => 'Dibatalkan'
+        ];
+
+        return $labels[$status] ?? ucfirst($status);
+    }
+
+    // TAMBAHAN: Method untuk mendapatkan detail aplikasi (untuk modal)
+    public function getApplicationDetail($id)
+    {
+        try {
+            $application = Application::with([
+                'user:id,name,email,phone',
+                'guideline:id,title,description,type,fee,required_documents',
+                'histories' => function ($query) {
+                    $query->orderBy('created_at', 'desc')->take(5);
+                },
+                'payment',
+                'generatedDocuments'
+            ])->findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $application->id,
+                    'application_number' => $application->application_number,
+                    'user' => $application->user,
+                    'guideline' => $application->guideline,
+                    'type' => $application->type,
+                    'type_label' => $application->type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)',
+                    'status' => $application->status,
+                    'status_label' => $this->getStatusLabel($application->status),
+                    'purpose' => $application->purpose,
+                    'start_date' => $application->start_date ? $application->start_date->format('d/m/Y') : '-',
+                    'end_date' => $application->end_date ? $application->end_date->format('d/m/Y') : '-',
+                    'date_range_display' => ($application->start_date && $application->end_date)
+                        ? $application->start_date->format('d/m/Y') . ' - ' . $application->end_date->format('d/m/Y')
+                        : 'Tanggal tidak tersedia',
+                    'documents' => $application->documents,
+                    'documents_count' => is_array($application->documents) ? count($application->documents) : 0,
+                    'notes' => $application->notes,
+                    'created_at' => $application->created_at->format('d/m/Y H:i:s'),
+                    'updated_at' => $application->updated_at->format('d/m/Y H:i:s'),
+                    'histories' => $application->histories,
+                    'payment' => $application->payment,
+                    'generated_documents' => $application->generatedDocuments
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Application not found: ' . $e->getMessage()
+            ], 404);
+        }
+    }
+
+    // Manajemen Permintaan - DIPERBAIKI
     public function requests()
     {
         try {
@@ -45,9 +144,19 @@ class AdminController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
 
+            // Transform data untuk konsistensi
+            $applications->getCollection()->transform(function ($app) {
+                $app->type_label = $app->type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)';
+                $app->status_label = $this->getStatusLabel($app->status);
+                $app->created_at_formatted = $app->created_at->format('d/m/Y H:i');
+                $app->documents_count = is_array($app->documents) ? count($app->documents) : 0;
+                return $app;
+            });
+
             return response()->json($applications);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to load requests'], 500);
+            Log::error('Requests loading error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load requests: ' . $e->getMessage()], 500);
         }
     }
 
@@ -134,7 +243,8 @@ class AdminController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Request updated successfully']);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to verify request'], 500);
+            Log::error('Verify request error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to verify request: ' . $e->getMessage()], 500);
         }
     }
 
@@ -235,12 +345,12 @@ class AdminController extends Controller
             if ($request->hasFile('document')) {
                 $file = $request->file('document');
                 $filename = 'result_' . $application->application_number . '_' . time() . '.' . $file->getClientOriginalExtension();
-                
+
                 // STORAGE TERORGANISIR: Folder terpisah berdasarkan tipe dan bulan
                 $folderPath = $application->type === 'pnbp' ? 'results/pnbp' : 'results/non_pnbp';
                 $yearMonth = date('Y/m');
                 $fullPath = $folderPath . '/' . $yearMonth;
-                
+
                 // Store file dengan path terorganisir
                 $path = $file->storeAs($fullPath, $filename, 'public');
 
@@ -309,7 +419,7 @@ class AdminController extends Controller
                 );
 
                 return response()->json([
-                    'success' => true, 
+                    'success' => true,
                     'message' => 'Document uploaded successfully',
                     'path' => $path,
                     'storage_folder' => $fullPath

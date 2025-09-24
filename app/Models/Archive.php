@@ -11,10 +11,25 @@ class Archive extends Model
 
     protected $fillable = [
         'application_id',
-        'archive_path',
-        'file_size',
+        'archive_date',
         'notes'
     ];
+
+    protected $casts = [
+        'archive_date' => 'datetime'
+    ];
+
+    // TAMBAHKAN: Auto-fill archive_date jika tidak ada
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($archive) {
+            if (!$archive->archive_date) {
+                $archive->archive_date = now();
+            }
+        });
+    }
 
     public function application()
     {
