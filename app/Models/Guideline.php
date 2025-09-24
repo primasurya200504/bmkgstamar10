@@ -12,18 +12,25 @@ class Guideline extends Model
     protected $fillable = [
         'title',
         'description',
-        'type',
-        'required_documents',
+        'type',  // ADDED untuk support seeder
         'fee',
+        'required_documents',
         'is_active'
     ];
 
     protected $casts = [
-        'required_documents' => 'array'
+        'required_documents' => 'array',
+        'is_active' => 'boolean',
+        'fee' => 'integer'
     ];
 
     public function applications()
     {
         return $this->hasMany(Application::class);
+    }
+
+    public function getFormattedFeeAttribute()
+    {
+        return 'Rp ' . number_format($this->fee, 0, ',', '.');
     }
 }

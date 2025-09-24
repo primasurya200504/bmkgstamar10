@@ -11,8 +11,10 @@ class GeneratedDocument extends Model
 
     protected $fillable = [
         'application_id',
+        'document_name',
         'document_path',
-        'document_name'
+        'document_type',
+        'file_size'
     ];
 
     public function application()

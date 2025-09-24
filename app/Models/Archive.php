@@ -10,11 +10,10 @@ class Archive extends Model
     use HasFactory;
 
     protected $fillable = [
-        'application_id', 'archive_date', 'notes'
-    ];
-
-    protected $casts = [
-        'archive_date' => 'date'
+        'application_id',
+        'archive_path',
+        'file_size',
+        'notes'
     ];
 
     public function application()

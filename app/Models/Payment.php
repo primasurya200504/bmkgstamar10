@@ -10,10 +10,17 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'application_id', 'amount', 'payment_proof', 'status', 'paid_at'
+        'application_id',
+        'amount',
+        'payment_method',
+        'payment_proof',
+        'status',
+        'paid_at',
+        'notes'
     ];
 
     protected $casts = [
+        'amount' => 'decimal:2',
         'paid_at' => 'datetime'
     ];
 
