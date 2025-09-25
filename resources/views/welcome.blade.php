@@ -442,7 +442,7 @@
         <!-- Petir -->
         <div id="lightning" class="animated-item"></div>
         <!-- Pesawat sebagai gambar -->
-        <img id="plane-img" src="https://www.svgrepo.com/show/528373/airplane.svg" alt="Pesawat">
+        <img id="plane-img" src="img/pesawat.gif" alt="Pesawat">
         <!-- Awan Hujan -->
         <div id="cloud-1" class="cloud">
             <div class="cloud-rain"></div>
@@ -466,15 +466,14 @@
     </div>
 
     <!-- Kapal sebagai gambar -->
-    <img id="ship-img" src="https://www.svgrepo.com/show/472620/boat.svg" alt="Kapal">
+    <img id="ship-img" src="img/kapal.gif" alt="Kapal">
 
     <!-- Container utama -->
     <div class="relative w-full h-screen flex flex-col items-center justify-center">
         <!-- Logo BMKG, tambahkan z-index agar selalu di atas dan bisa diklik -->
         <div class="logo-container z-50" id="logo-main">
             <!-- Menggunakan logo BMKG yang berbeda dari sumber lain -->
-            <img src="https://logomak.com/cdn-cgi/image/format=auto,width=1000,quality=80,dpr=1/img/Logo-BMKG.png"
-                alt="Logo BMKG" class="w-48 h-48">
+            <img src="img/logo.png" alt="Logo BMKG" class="w-45 h-48">
         </div>
 
         <!-- Container untuk bubble fitur -->
