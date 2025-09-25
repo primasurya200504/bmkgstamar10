@@ -19,6 +19,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/requests', [AdminController::class, 'requests'])->name('requests');
         Route::post('/requests/{id}/verify', [AdminController::class, 'verifyRequest'])->name('requests.verify');
 
+        // TAMBAHAN: Route untuk detail aplikasi (PENTING!)
+        Route::get('/applications/{id}/detail', [AdminController::class, 'getApplicationDetail'])->name('applications.detail');
+
         // Manajemen Pembayaran
         Route::get('/payments', [AdminController::class, 'payments'])->name('payments');
         Route::post('/payments/{id}/verify', [AdminController::class, 'verifyPayment'])->name('payments.verify');
@@ -51,32 +54,28 @@ Route::middleware('auth')->group(function () {
         Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('users.destroy');
     });
 
-    // User routes
+    // User routes - COMPLETE WITH ALL NEEDED ROUTES
     Route::middleware('user')->prefix('user')->name('user.')->group(function () {
         Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
 
-        // Guidelines dan Pengajuan - FIXED ROUTE NAMES
+        // Guidelines dan Pengajuan - BOTH ROUTES NEEDED
         Route::get('/guidelines', [UserController::class, 'guidelines'])->name('guidelines');
         Route::post('/submit-application', [UserController::class, 'submitApplication'])->name('submit-application');
-
-        // Alternative route yang juga support (untuk backward compatibility)
         Route::post('/applications', [UserController::class, 'submitApplication'])->name('applications.store');
 
-        // Pembayaran - FIXED ROUTE NAME
-        Route::post('/applications/{id}/upload-payment', [UserController::class, 'uploadPaymentProof'])->name('upload-payment');
+        // Pembayaran
         Route::post('/applications/{id}/payment', [UserController::class, 'uploadPaymentProof'])->name('applications.payment');
 
-        // Download Dokumen - FIXED ROUTE NAME
+        // Download Dokumen
         Route::get('/documents/{id}/download', [UserController::class, 'downloadDocument'])->name('download-document');
-        Route::get('/documents/{id}/download', [UserController::class, 'downloadDocument'])->name('documents.download');
 
         // Riwayat
         Route::get('/history', [UserController::class, 'history'])->name('history');
 
-        // Profil - FIXED ROUTE NAMES
+        // Profil
         Route::get('/profile', [UserController::class, 'profile'])->name('profile');
         Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
-        Route::put('/change-password', [UserController::class, 'changePassword'])->name('password.change');
+        Route::put('/profile/change-password', [UserController::class, 'changePassword'])->name('password.change');
     });
 
     // Main dashboard redirect based on role
@@ -87,7 +86,7 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('user.dashboard');
     })->name('dashboard');
 
-    // Profile routes (jika menggunakan ProfileController dari Breeze/Jetstream)
+    // Profile routes (untuk Breeze/Jetstream compatibility)
     Route::get('/profile-settings', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile-settings', [ProfileController::class, 'update'])->name('profile.update.breeze');
     Route::delete('/profile-settings', [ProfileController::class, 'destroy'])->name('profile.destroy');

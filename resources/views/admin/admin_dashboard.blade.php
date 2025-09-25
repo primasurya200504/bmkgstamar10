@@ -1540,15 +1540,15 @@
                                     </span>
                                 </div>
                                 ${history.metadata ? `
-                                        <div class="mt-3 p-3 bg-gray-50 rounded-lg">
-                                            <h5 class="text-sm font-medium text-gray-700 mb-2">Detail:</h5>
-                                            <div class="text-xs text-gray-600 space-y-1">
-                                                ${Object.entries(history.metadata).map(([key, value]) => 
-                                                    `<p><strong>${formatMetadataKey(key)}:</strong> ${formatMetadataValue(value)}</p>`
-                                                ).join('')}
+                                            <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                                                <h5 class="text-sm font-medium text-gray-700 mb-2">Detail:</h5>
+                                                <div class="text-xs text-gray-600 space-y-1">
+                                                    ${Object.entries(history.metadata).map(([key, value]) => 
+                                                        `<p><strong>${formatMetadataKey(key)}:</strong> ${formatMetadataValue(value)}</p>`
+                                                    ).join('')}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ` : ''}
+                                        ` : ''}
                             </div>
                         </div>
                     `;
