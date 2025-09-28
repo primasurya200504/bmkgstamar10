@@ -1011,12 +1011,14 @@
                     document.getElementById('selectedGuidelineInfo').classList.add('hidden');
                     document.getElementById('documentsSection').classList.add('hidden');
                     showSection('history');
+                    // Refresh data
+                    loadSubmissions();
                 } else {
                     alert('Gagal mengirim pengajuan: ' + (result.message || 'Terjadi kesalahan'));
                 }
             } catch (error) {
                 console.error('Error submitting form:', error);
-                alert('Terjadi kesalahan saat mengirim pengajuan');
+                alert('Terjadi kesalahan saat mengirim pengajuan: ' + error.message);
             } finally {
                 // Reset button state
                 submitBtn.disabled = false;
@@ -1024,6 +1026,7 @@
                 submitBtnLoader.classList.add('hidden');
             }
         }
+
 
         async function updateProfile() {
             try {
@@ -1106,10 +1109,10 @@
                                             Detail
                                         </button>
                                         ${submission.status === 'payment_pending' && submission.guideline ? `
-                                                <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
-                                                    Bayar
-                                                </button>
-                                            ` : ''}
+                                                    <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
+                                                        Bayar
+                                                    </button>
+                                                ` : ''}
                                     </div>
                                 </td>
                             </tr>

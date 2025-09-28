@@ -3,410 +3,291 @@
 namespace App\Http\Controllers;
 
 use App\Models\Submission;
-use App\Models\SubmissionHistory;
 use App\Models\Guideline;
-use App\Models\Payment;
 use App\Models\User;
+use App\Models\Payment;
 use App\Models\GeneratedDocument;
+use App\Models\Archive;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use ZipArchive;
 
 class AdminController extends Controller
 {
-    /**
-     * Dashboard Admin
-     */
+    // Dashboard Admin - Fixed dengan Error Handling
     public function dashboard()
     {
         try {
             // Test database connection
             DB::connection()->getPdo();
 
+            // Enhanced statistics
             $stats = [
                 'pending_requests' => Submission::where('status', 'pending')->count(),
-                'pending_payments' => Payment::where('status', 'uploaded')->count(),
+                'pending_payments' => Submission::where('status', 'payment_pending')->count(),
                 'processing' => Submission::where('status', 'processing')->count(),
                 'completed' => Submission::where('status', 'completed')->count(),
-                'total_users' => User::where('role', 'user')->count()
+                'total_users' => User::where('role', 'user')->count(),
+                'total_submissions' => Submission::count(),
+                'today_submissions' => Submission::whereDate('created_at', Carbon::today())->count(),
+                'this_month_submissions' => Submission::whereMonth('created_at', Carbon::now()->month)->count()
             ];
 
-            // Get recent submissions
+            // Recent submissions dengan safe handling
             $recentSubmissions = Submission::with(['user', 'guideline'])
                 ->orderBy('created_at', 'desc')
                 ->take(10)
-                ->get();
+                ->get()
+                ->map(function ($submission) {
+                    return [
+                        'id' => $submission->id,
+                        'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
+                        'user_name' => $submission->user->name ?? 'N/A',
+                        'guideline_title' => $submission->guideline->title ?? 'N/A',
+                        'status' => $submission->status,
+                        'status_label' => $this->getStatusLabel($submission->status),
+                        'created_at_formatted' => $submission->created_at->format('d/m/Y H:i'),
+                        'type_label' => ($submission->guideline->type ?? 'non_pnbp') === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)'
+                    ];
+                });
 
             Log::info('Admin Dashboard loaded successfully', [
                 'stats' => $stats,
                 'submissions_count' => $recentSubmissions->count()
             ]);
 
-            return view('admin.admin_dashboard', compact('stats', 'recentSubmissions'));
+            return view('admin.dashboard', compact('stats', 'recentSubmissions'));
         } catch (\Exception $e) {
             Log::error('Admin Dashboard Error: ' . $e->getMessage());
 
+            // Fallback data
             $stats = [
                 'pending_requests' => 0,
                 'pending_payments' => 0,
                 'processing' => 0,
                 'completed' => 0,
-                'total_users' => 0
+                'total_users' => 0,
+                'total_submissions' => 0,
+                'today_submissions' => 0,
+                'this_month_submissions' => 0
             ];
 
             $recentSubmissions = collect();
 
-            return view('admin.admin_dashboard', compact('stats', 'recentSubmissions'))
-                ->with('error', 'Database connection issue: ' . $e->getMessage());
+            return view('admin.dashboard', compact('stats', 'recentSubmissions'))
+                ->with('error', 'Error loading dashboard: ' . $e->getMessage());
         }
     }
 
-    // AJAX Methods untuk Admin Dashboard
-    public function getSubmissions()
+    // Manajemen Guidelines - FIXED
+    public function guidelines()
     {
         try {
-            $submissions = Submission::with(['user', 'guideline', 'payment'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $guidelines = Guideline::orderBy('created_at', 'desc')->get()->map(function ($guideline) {
+                $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
+                return $guideline;
+            });
 
-            return response()->json([
-                'success' => true,
-                'data' => $submissions
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error loading submissions: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error loading submissions',
-                'data' => []
-            ], 500);
-        }
-    }
-
-    public function getPayments()
-    {
-        try {
-            $payments = Payment::with(['submission.user', 'submission.guideline'])
-                ->whereHas('submission')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $payments
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error loading payments: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error loading payments',
-                'data' => []
-            ], 500);
-        }
-    }
-
-    public function getDocuments()
-    {
-        try {
-            $submissions = Submission::with(['user', 'guideline'])
-                ->where('status', 'paid')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $submissions
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error loading documents: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error loading documents',
-                'data' => []
-            ], 500);
-        }
-    }
-
-    public function getGuidelines()
-    {
-        try {
-            $guidelines = Guideline::orderBy('created_at', 'desc')->get();
+            Log::info('Guidelines loaded successfully', ['count' => $guidelines->count()]);
 
             return response()->json([
                 'success' => true,
                 'data' => $guidelines
             ]);
         } catch (\Exception $e) {
-            Log::error('Error loading guidelines: ' . $e->getMessage());
-
+            Log::error('Admin Guidelines Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading guidelines',
+                'message' => 'Error loading guidelines: ' . $e->getMessage(),
                 'data' => []
             ], 500);
         }
     }
 
-    public function getArchives(Request $request)
+    // Get Submissions Data - FIXED
+    public function getSubmissionsData()
     {
         try {
-            $query = Submission::with(['user', 'guideline'])
-                ->where('status', 'completed');
-
-            // Apply filters
-            if ($request->has('year') && !empty($request->year)) {
-                $query->whereYear('updated_at', $request->year);
-            }
-
-            if ($request->has('month') && !empty($request->month)) {
-                $query->whereMonth('updated_at', $request->month);
-            }
-
-            if ($request->has('type') && !empty($request->type)) {
-                $query->where('type', $request->type);
-            }
-
-            $submissions = $query->orderBy('updated_at', 'desc')->get();
+            $submissions = Submission::with(['user', 'guideline'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($submission) {
+                    return [
+                        'id' => $submission->id,
+                        'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
+                        'user' => [
+                            'id' => $submission->user->id ?? null,
+                            'name' => $submission->user->name ?? 'N/A',
+                            'email' => $submission->user->email ?? 'N/A'
+                        ],
+                        'guideline' => [
+                            'id' => $submission->guideline->id ?? null,
+                            'title' => $submission->guideline->title ?? 'N/A',
+                            'type' => $submission->guideline->type ?? 'non_pnbp',
+                            'fee' => $submission->guideline->fee ?? 0
+                        ],
+                        'status' => $submission->status,
+                        'status_label' => $this->getStatusLabel($submission->status),
+                        'type_label' => ($submission->guideline->type ?? 'non_pnbp') === 'pnbp' ? 'PNBP' : 'Non-PNBP',
+                        'created_at' => $submission->created_at->format('d/m/Y H:i'),
+                        'created_at_formatted' => $submission->created_at->format('d/m/Y H:i')
+                    ];
+                });
 
             return response()->json([
                 'success' => true,
                 'data' => $submissions
             ]);
         } catch (\Exception $e) {
-            Log::error('Error loading archives: ' . $e->getMessage());
-
+            Log::error('Get Submissions Data Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading archives',
+                'message' => 'Error loading submissions data',
                 'data' => []
             ], 500);
         }
     }
 
-    public function getUsers()
-    {
-        try {
-            $users = User::where('role', 'user')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $users
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error loading users: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error loading users',
-                'data' => []
-            ], 500);
-        }
-    }
-
-    // Detail Methods
-    public function getSubmissionDetail($id)
-    {
-        try {
-            $submission = Submission::with(['user', 'guideline', 'payment'])
-                ->findOrFail($id);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'submission' => $submission,
-                    'user' => $submission->user,
-                    'guideline' => $submission->guideline
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Submission not found'
-            ], 404);
-        }
-    }
-
-    public function getPaymentDetail($id)
-    {
-        try {
-            $payment = Payment::with(['submission.user', 'submission.guideline'])
-                ->findOrFail($id);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'payment' => $payment,
-                    'submission' => $payment->submission,
-                    'user' => $payment->submission->user
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Payment not found'
-            ], 404);
-        }
-    }
-
-    // Action Methods
-    public function verifySubmission(Request $request, $id)
-    {
-        try {
-            $submission = Submission::findOrFail($id);
-
-            if ($request->action === 'approve') {
-                $submission->update(['status' => 'verified']);
-
-                // Create payment record if PNBP
-                if ($submission->type === 'pnbp' && $submission->guideline->fee > 0) {
-                    $submission->update(['status' => 'payment_pending']);
-                }
-
-                SubmissionHistory::create([
-                    'submission_id' => $submission->id,
-                    'actor_id' => Auth::id(),
-                    'actor_type' => 'admin',
-                    'action' => 'verified',
-                    'title' => 'Pengajuan Disetujui',
-                    'description' => 'Pengajuan telah diverifikasi dan disetujui oleh admin'
-                ]);
-            } else {
-                $submission->update(['status' => 'rejected']);
-
-                SubmissionHistory::create([
-                    'submission_id' => $submission->id,
-                    'actor_id' => Auth::id(),
-                    'actor_type' => 'admin',
-                    'action' => 'rejected',
-                    'title' => 'Pengajuan Ditolak',
-                    'description' => $request->notes ?? 'Pengajuan ditolak oleh admin'
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Submission updated successfully'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error verifying submission: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error updating submission'
-            ], 500);
-        }
-    }
-
-    public function verifyPayment(Request $request, $id)
-    {
-        try {
-            $payment = Payment::findOrFail($id);
-            $submission = $payment->submission;
-
-            if ($request->action === 'approve') {
-                $payment->update(['status' => 'verified']);
-                $submission->update(['status' => 'paid']);
-
-                SubmissionHistory::create([
-                    'submission_id' => $submission->id,
-                    'actor_id' => Auth::id(),
-                    'actor_type' => 'admin',
-                    'action' => 'payment_verified',
-                    'title' => 'Pembayaran Diverifikasi',
-                    'description' => 'Bukti pembayaran telah diverifikasi oleh admin'
-                ]);
-            } else {
-                $payment->update(['status' => 'rejected']);
-                $submission->update(['status' => 'payment_pending']);
-
-                SubmissionHistory::create([
-                    'submission_id' => $submission->id,
-                    'actor_id' => Auth::id(),
-                    'actor_type' => 'admin',
-                    'action' => 'payment_rejected',
-                    'title' => 'Pembayaran Ditolak',
-                    'description' => $request->notes ?? 'Bukti pembayaran ditolak oleh admin'
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment updated successfully'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error verifying payment: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error updating payment'
-            ], 500);
-        }
-    }
-
-    public function uploadDocument(Request $request, $id)
+    // Store Guidelines - FIXED
+    public function storeGuideline(Request $request)
     {
         try {
             $request->validate([
-                'documentname' => 'required|string|max:255',
-                'document' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240'
+                'title' => 'required|string|max:255',
+                'description' => 'required|string',
+                'type' => 'required|in:pnbp,non_pnbp',
+                'required_documents' => 'required|array',
+                'fee' => 'required|numeric|min:0'
             ]);
 
-            $submission = Submission::findOrFail($id);
+            $guideline = Guideline::create([
+                'title' => $request->title,
+                'description' => $request->description,
+                'type' => $request->type,
+                'required_documents' => json_encode($request->required_documents),
+                'fee' => $request->fee,
+                'is_active' => true
+            ]);
 
-            if ($request->hasFile('document')) {
-                $file = $request->file('document');
-                $originalName = $request->documentname . '.' . $file->getClientOriginalExtension();
-                $path = $file->store('generated_documents/' . $submission->id, 'public');
-
-                GeneratedDocument::create([
-                    'submission_id' => $submission->id,
-                    'document_path' => $path,
-                    'document_name' => $originalName,
-                    'document_type' => 'generated_document',
-                    'file_size' => $file->getSize(),
-                    'mime_type' => $file->getClientMimeType(),
-                    'uploaded_by' => Auth::id()
-                ]);
-
-                // Update submission status to completed
-                $submission->update(['status' => 'completed']);
-
-                // Create history
-                SubmissionHistory::create([
-                    'submission_id' => $submission->id,
-                    'actor_id' => Auth::id(),
-                    'actor_type' => 'admin',
-                    'action' => 'document_uploaded',
-                    'title' => 'Dokumen Diunggah',
-                    'description' => 'Admin mengunggah dokumen: ' . $originalName
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Dokumen berhasil diunggah'
-                ]);
-            }
+            Log::info('Guideline created successfully', ['guideline_id' => $guideline->id]);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengunggah dokumen'
-            ], 500);
+                'success' => true,
+                'message' => 'Panduan berhasil dibuat',
+                'data' => $guideline
+            ]);
         } catch (\Exception $e) {
-            Log::error('Error uploading document: ' . $e->getMessage());
-
+            Log::error('Create Guideline Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengunggah dokumen: ' . $e->getMessage()
+                'message' => 'Gagal membuat panduan: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    // Update Guidelines - FIXED
+    public function updateGuideline(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'description' => 'required|string',
+                'type' => 'required|in:pnbp,non_pnbp',
+                'required_documents' => 'required|array',
+                'fee' => 'required|numeric|min:0'
+            ]);
+
+            $guideline = Guideline::findOrFail($id);
+            $guideline->update([
+                'title' => $request->title,
+                'description' => $request->description,
+                'type' => $request->type,
+                'required_documents' => json_encode($request->required_documents),
+                'fee' => $request->fee
+            ]);
+
+            Log::info('Guideline updated successfully', ['guideline_id' => $id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Panduan berhasil diperbarui',
+                'data' => $guideline
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Update Guideline Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui panduan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Show Guideline - FIXED
+    public function showGuideline($id)
+    {
+        try {
+            $guideline = Guideline::findOrFail($id);
+            $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
+
+            return response()->json([
+                'success' => true,
+                'data' => $guideline
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Panduan tidak ditemukan'
+            ], 404);
+        }
+    }
+
+    // Delete Guideline - FIXED
+    public function destroyGuideline($id)
+    {
+        try {
+            $guideline = Guideline::findOrFail($id);
+
+            // Check if guideline is being used
+            if ($guideline->submissions()->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak dapat menghapus panduan yang sudah digunakan dalam pengajuan'
+                ], 422);
+            }
+
+            $guideline->delete();
+
+            Log::info('Guideline deleted successfully', ['guideline_id' => $id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Panduan berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Delete Guideline Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus panduan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Helper method untuk status label
+    private function getStatusLabel($status)
+    {
+        $labels = [
+            'pending' => 'Menunggu Verifikasi',
+            'verified' => 'Terverifikasi',
+            'payment_pending' => 'Menunggu Pembayaran',
+            'paid' => 'Pembayaran Diterima',
+            'processing' => 'Sedang Diproses',
+            'completed' => 'Selesai',
+            'rejected' => 'Ditolak'
+        ];
+
+        return $labels[$status] ?? 'Status Tidak Dikenal';
     }
 }
