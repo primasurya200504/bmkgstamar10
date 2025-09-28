@@ -4,1422 +4,997 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard User - BMKG Maritim Pontianak</title>
+    <title>Dashboard User - BMKG Pontianak</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #f8fafc;
+            color: #1f2937;
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
-        .modal-content {
-            background-color: #fefefe;
-            margin: auto;
-            padding: 24px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-        }
-
-        .content-section {
-            display: none;
-        }
-
-        .content-section.active {
-            display: block;
-        }
-
-        .category-info {
-            display: block;
-        }
-
-        .category-info.hidden {
-            display: none;
-        }
-
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        .spinner {
-            border: 4px solid #f3f4f6;
-            border-top: 4px solid #3b82f6;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-left: 8px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .nav-active {
-            background-color: #4f46e5 !important;
-            color: white !important;
-        }
-
-        .file-drop-area {
-            border: 2px dashed #d1d5db;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-            background-color: #fafafa;
-        }
-
-        .file-drop-area:hover {
-            border-color: #4f46e5;
-            background-color: #f0f9ff;
+        .main-content {
+            background-color: #f8fafc;
         }
 
         .status-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .preset-button {
-            transition: all 0.2s ease;
-        }
-
-        .preset-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .free-date-input {
-            position: relative;
-        }
-
-        .free-date-input input[type="date"] {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-        }
-
-        .date-info-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.625rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
             font-weight: 500;
+            border-radius: 9999px;
         }
 
-        .historical-data {
-            background-color: #eff6ff;
-            color: #1d4ed8;
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
         }
 
-        .recent-data {
-            background-color: #f0fdf4;
-            color: #16a34a;
+        .modal-overlay {
+            backdrop-filter: blur(8px);
         }
 
-        .future-projection {
-            background-color: #fefce8;
-            color: #ca8a04;
-        }
-
-        .error-message {
-            background-color: #fef2f2;
-            border: 1px solid #f87171;
-            color: #dc2626;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 8px;
-        }
-
-        .success-message {
-            background-color: #f0fdf4;
-            border: 1px solid #22c55e;
-            color: #15803d;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 8px;
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
     </style>
 </head>
 
 <body class="flex min-h-screen">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white shadow-lg p-6 flex flex-col justify-between rounded-r-2xl">
-        <div>
-            <div class="flex items-center mb-10">
-                <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center mr-3">
-                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <h1 class="text-xl font-bold text-gray-800">BMKG Pontianak</h1>
+    <div class="sidebar w-72 flex flex-col shadow-2xl">
+        <div class="flex items-center justify-center h-20 border-b border-white border-opacity-20">
+            <div class="text-center">
+                <h1 class="text-white text-xl font-bold">BMKG STAMAR</h1>
+                <p class="text-white text-sm opacity-80">Pontianak</p>
             </div>
-
-            <nav class="space-y-4">
-                <a href="#dashboard" id="nav-dashboard"
-                    class="flex items-center p-3 text-gray-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors duration-200 nav-active">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2-2m-2 2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                        </path>
-                    </svg>
-                    Dasbor
-                </a>
-
-                <a href="#pengajuan" id="nav-pengajuan"
-                    class="flex items-center p-3 text-gray-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    Pengajuan Surat
-                </a>
-
-                <a href="#panduan" id="nav-panduan"
-                    class="flex items-center p-3 text-gray-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 6.253v13m0-13C10.832 5.468 9.587 5.097 8.323 5.097a2.796 2.796 0 00-.777.106V5.344a.796.796 0 00-.518-.755C6.012 4.382 4.67 4.195 3.328 4.195A2.796 2.796 0 00.552 4.41l.019.019V6.44c.54.496 1.15.828 1.83 1.012.68.184 1.41.282 2.16.282 1.342 0 2.684-.187 4.026-.563a.796.796 0 00.518-.755V5.344a.796.796 0 00.518-.755z">
-                        </path>
-                    </svg>
-                    Panduan Surat/Data
-                </a>
-
-                <a href="#profile" id="nav-profile"
-                    class="flex items-center p-3 text-gray-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
-                    Profil
-                </a>
-            </nav>
         </div>
 
-        <div class="mt-auto">
-            <form action="{{ route('logout') }}" method="POST">
+        <nav class="flex-1 px-6 py-8 space-y-3">
+            <a href="#dashboard" id="nav-dashboard"
+                class="flex items-center px-4 py-3 text-white bg-white bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-200 backdrop-blur-sm">
+                <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z">
+                    </path>
+                </svg>
+                <span class="font-medium">Dashboard</span>
+            </a>
+
+            <a href="#guidelines" id="nav-guidelines"
+                class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
+                <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm0 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"
+                        clip-rule="evenodd"></path>
+                </svg>
+                <span class="font-medium">Panduan Pengajuan</span>
+            </a>
+
+            <a href="#submit" id="nav-submit"
+                class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
+                <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                        clip-rule="evenodd"></path>
+                </svg>
+                <span class="font-medium">Ajukan Surat/Data</span>
+            </a>
+
+            <a href="#history" id="nav-history"
+                class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
+                <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                        clip-rule="evenodd"></path>
+                </svg>
+                <span class="font-medium">Riwayat Pengajuan</span>
+            </a>
+
+            <a href="#profile" id="nav-profile"
+                class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
+                <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                        clip-rule="evenodd"></path>
+                </svg>
+                <span class="font-medium">Profil Saya</span>
+            </a>
+        </nav>
+
+        <div class="px-6 py-6 border-t border-white border-opacity-20">
+            <div class="flex items-center mb-6">
+                <div
+                    class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-white font-bold text-lg backdrop-blur-sm">
+                    {{ substr(Auth::user()->name ?? 'U', 0, 1) }}
+                </div>
+                <div class="ml-4">
+                    <p class="text-white font-semibold">{{ Auth::user()->name ?? 'User' }}</p>
+                    <p class="text-white text-sm opacity-80">{{ Auth::user()->email ?? '' }}</p>
+                </div>
+            </div>
+
+            <form action="{{ route('logout') }}" method="POST" class="w-full">
                 @csrf
                 <button type="submit"
-                    class="flex items-center w-full p-3 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
-                        </path>
+                    class="w-full bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20">
+                    <svg class="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z"
+                            clip-rule="evenodd"></path>
                     </svg>
                     Logout
                 </button>
             </form>
         </div>
-    </aside>
+    </div>
 
     <!-- Main Content -->
-    <main class="flex-1 p-8 overflow-y-auto">
-        <header class="flex justify-between items-center mb-8">
-            <h2 class="text-3xl font-bold text-gray-800">Selamat datang, {{ Auth::user()->name }}!</h2>
-            <div class="flex items-center space-x-4">
-                <span class="text-gray-600">{{ ucfirst(Auth::user()->role) }}</span>
-                <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
-                    {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+    <div class="flex-1 main-content">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-100 px-8 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Selamat Datang!</h1>
+                    <p class="text-gray-600 mt-2">Portal Pengajuan Data Meteorologi, Klimatologi & Geofisika</p>
+                    <p class="text-sm text-gray-500 mt-1">{{ now()->format('l, d F Y') }}</p>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600">Total Pengajuan Anda</p>
+                        <p class="text-2xl font-bold text-indigo-600">{{ $stats['total'] ?? 0 }}</p>
+                    </div>
                 </div>
             </div>
         </header>
 
-        @if (session('success'))
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6"
-                role="alert">
-                <span class="block sm:inline">{{ session('success') }}</span>
-            </div>
-        @endif
-
-        <!-- Dashboard Section -->
-        <section id="dashboard" class="content-section active">
-            <div class="bg-white p-8 rounded-lg shadow-md">
-                <h3 class="text-2xl font-bold mb-4">Dasbor</h3>
-                <p class="text-gray-600 mb-6">Berikut adalah riwayat pengajuan surat/data Anda.</p>
-
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+        <!-- Dashboard Content -->
+        <div class="p-8">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section">
+                <!-- Statistics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border border-gray-100">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                            <div class="p-4 rounded-xl bg-yellow-100">
+                                <svg class="w-8 h-8 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
                                         d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                                        clip-rule="evenodd" />
+                                        clip-rule="evenodd"></path>
                                 </svg>
                             </div>
-                            <div>
-                                <p class="text-sm font-medium text-yellow-800">Menunggu</p>
-                                <p class="text-2xl font-bold text-yellow-900">{{ $stats['pending'] ?? 0 }}</p>
+                            <div class="ml-5">
+                                <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Pending</p>
+                                <p class="text-3xl font-bold text-gray-900">{{ $stats['pending'] ?? 0 }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Menunggu review</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border border-gray-100">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <div class="p-4 rounded-xl bg-blue-100">
+                                <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
                                         d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                        clip-rule="evenodd" />
+                                        clip-rule="evenodd"></path>
                                 </svg>
                             </div>
-                            <div>
-                                <p class="text-sm font-medium text-blue-800">Diproses</p>
-                                <p class="text-2xl font-bold text-blue-900">{{ $stats['in_process'] ?? 0 }}</p>
+                            <div class="ml-5">
+                                <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Diproses</p>
+                                <p class="text-3xl font-bold text-gray-900">{{ $stats['in_process'] ?? 0 }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Sedang diproses</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border border-gray-100">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <div class="p-4 rounded-xl bg-green-100">
+                                <svg class="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
                                         d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clip-rule="evenodd" />
+                                        clip-rule="evenodd"></path>
                                 </svg>
                             </div>
-                            <div>
-                                <p class="text-sm font-medium text-green-800">Selesai</p>
-                                <p class="text-2xl font-bold text-green-900">{{ $stats['completed'] ?? 0 }}</p>
+                            <div class="ml-5">
+                                <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Selesai</p>
+                                <p class="text-3xl font-bold text-gray-900">{{ $stats['completed'] ?? 0 }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Siap diambil</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border border-gray-100">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                            <div class="p-4 rounded-xl bg-red-100">
+                                <svg class="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
                                         d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                        clip-rule="evenodd" />
+                                        clip-rule="evenodd"></path>
                                 </svg>
                             </div>
-                            <div>
-                                <p class="text-sm font-medium text-red-800">Ditolak</p>
-                                <p class="text-2xl font-bold text-red-900">{{ $stats['rejected'] ?? 0 }}</p>
+                            <div class="ml-5">
+                                <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Ditolak</p>
+                                <p class="text-3xl font-bold text-gray-900">{{ $stats['rejected'] ?? 0 }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Perlu revisi</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-6 card-hover text-white">
+                        <div class="flex items-center">
+                            <div class="p-4 rounded-xl bg-white bg-opacity-20">
+                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8zm8 4a1 1 0 01-1-1v-1a1 1 0 00-1-1H8a1 1 0 01-1-1V9a1 1 0 011-1h1a1 1 0 001-1V6a1 1 0 112 0v1a1 1 0 001 1h1a1 1 0 110 2h-1a1 1 0 00-1 1v1a1 1 0 01-1 1z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-5">
+                                <p class="text-sm font-semibold opacity-90 uppercase tracking-wide">Total</p>
+                                <p class="text-3xl font-bold">{{ $stats['total'] ?? 0 }}</p>
+                                <p class="text-xs opacity-80 mt-1">Seluruh pengajuan</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Applications Table -->
-                <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white rounded-lg shadow-sm">
-                        <thead>
-                            <tr class="bg-gray-200 text-left text-sm font-semibold text-gray-700">
-                                <th class="py-3 px-4 rounded-tl-lg">No. Surat</th>
-                                <th class="py-3 px-4">Tanggal Pengajuan</th>
-                                <th class="py-3 px-4">Jenis Data</th>
-                                <th class="py-3 px-4">Kategori</th>
-                                <th class="py-3 px-4">Status</th>
-                                <th class="py-3 px-4 rounded-tr-lg">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-gray-600 text-sm font-normal">
-                            @forelse ($applications ?? [] as $application)
-                                <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="py-3 px-4 font-medium">{{ $application->application_number ?? 'N/A' }}</td>
-                                    <td class="py-3 px-4">{{ isset($application->created_at) ? $application->created_at->format('d/m/Y H:i') : 'N/A' }}</td>
-                                    <td class="py-3 px-4">{{ $application->guideline->title ?? 'N/A' }}</td>
-                                    <td class="py-3 px-4">
-                                        <span
-                                            class="px-2 py-1 text-xs font-semibold rounded-full {{ ($application->type ?? '') === 'pnbp' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
-                                            {{ ($application->type ?? '') === 'pnbp' ? 'PNBP' : 'Non-PNBP' }}
-                                        </span>
-                                    </td>
-                                    <td class="py-3 px-4">
-                                        @php
-                                            $statusConfig = [
-                                                'pending' => [
-                                                    'class' => 'bg-yellow-100 text-yellow-700',
-                                                    'text' => 'Menunggu',
-                                                ],
-                                                'verified' => [
-                                                    'class' => 'bg-blue-100 text-blue-700',
-                                                    'text' => 'Terverifikasi',
-                                                ],
-                                                'payment_pending' => [
-                                                    'class' => 'bg-orange-100 text-orange-700',
-                                                    'text' => 'Menunggu Pembayaran',
-                                                ],
-                                                'paid' => [
-                                                    'class' => 'bg-purple-100 text-purple-700',
-                                                    'text' => 'Sudah Bayar',
-                                                ],
-                                                'processing' => [
-                                                    'class' => 'bg-indigo-100 text-indigo-700',
-                                                    'text' => 'Diproses',
-                                                ],
-                                                'completed' => [
-                                                    'class' => 'bg-green-100 text-green-700',
-                                                    'text' => 'Selesai',
-                                                ],
-                                                'rejected' => [
-                                                    'class' => 'bg-red-100 text-red-700',
-                                                    'text' => 'Ditolak',
-                                                ],
-                                            ];
-                                            $config = $statusConfig[$application->status ?? 'pending'] ?? [
-                                                'class' => 'bg-gray-100 text-gray-700',
-                                                'text' => ucfirst($application->status ?? 'pending'),
-                                            ];
-                                        @endphp
-                                        <span
-                                            class="{{ $config['class'] }} font-medium py-1 px-3 rounded-full">{{ $config['text'] }}</span>
-                                    </td>
-                                    <td class="py-3 px-4 space-x-2">
-                                        <span class="text-gray-400 text-xs">-</span>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="py-8 px-4 text-center text-gray-500">
-                                        <div class="flex flex-col items-center">
-                                            <svg class="w-12 h-12 text-gray-300 mb-2" fill="none"
-                                                stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 12h6m-6-4h6m2 5l-5 5-5-5 5-5z"></path>
-                                            </svg>
-                                            <p>Anda belum memiliki riwayat pengajuan.</p>
-                                            <p class="text-sm">Mulai dengan mengajukan permintaan data pertama Anda.
-                                            </p>
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-2xl font-bold text-gray-900">Pengajuan Terbaru</h3>
+                                <button onclick="showSection('history')"
+                                    class="text-indigo-600 hover:text-indigo-800 font-semibold transition-colors">
+                                    Lihat Semua →
+                                </button>
+                            </div>
+
+                            <div class="space-y-4">
+                                @if (isset($recentActivities) && count($recentActivities) > 0)
+                                    @foreach ($recentActivities as $activity)
+                                        <div
+                                            class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                                            <div class="flex items-center space-x-4">
+                                                <div
+                                                    class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                    <svg class="w-6 h-6 text-indigo-600" fill="currentColor"
+                                                        viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd"
+                                                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                                                            clip-rule="evenodd"></path>
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h4 class="font-semibold text-gray-900">
+                                                        {{ $activity['guideline']['title'] ?? 'Data Request' }}</h4>
+                                                    <p class="text-sm text-gray-500">
+                                                        {{ $activity['submission_number'] ?? 'SUB-000' }} •
+                                                        {{ isset($activity['created_at']) ? $activity['created_at']->diffForHumans() : 'Unknown' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                @php
+                                                    $status = $activity['status'] ?? 'pending';
+                                                    $statusConfig = [
+                                                        'pending' => 'bg-yellow-100 text-yellow-800',
+                                                        'verified' => 'bg-blue-100 text-blue-800',
+                                                        'payment_pending' => 'bg-orange-100 text-orange-800',
+                                                        'paid' => 'bg-purple-100 text-purple-800',
+                                                        'processing' => 'bg-indigo-100 text-indigo-800',
+                                                        'completed' => 'bg-green-100 text-green-800',
+                                                        'rejected' => 'bg-red-100 text-red-800',
+                                                    ];
+                                                @endphp
+                                                <span
+                                                    class="status-badge {{ $statusConfig[$status] ?? 'bg-gray-100 text-gray-800' }}">
+                                                    {{ get_status_text($status) }}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- Pengajuan Section -->
-        <section id="pengajuan" class="content-section">
-            <div class="bg-white p-8 rounded-lg shadow-md">
-                <h3 class="text-2xl font-bold mb-4">Formulir Pengajuan Surat/Data</h3>
-
-                <!-- Enhanced Info Periode Data -->
-                <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 class="font-medium text-blue-800 mb-2">📅 Info Pemilihan Tanggal:</h4>
-                    <ul class="text-sm text-blue-700 space-y-1">
-                        <li>• <strong>Bebas memilih tanggal:</strong> Dari tahun 2000 hingga 2100</li>
-                        <li>• <strong>Data Historis:</strong> Tersedia dari tahun 1990 (data observasi)</li>
-                        <li>• <strong>Data Real-time:</strong> Data terkini sampai hari ini</li>
-                        <li>• <strong>Proyeksi Data:</strong> Untuk keperluan penelitian dan modeling</li>
-                        <li>• <strong>Catatan:</strong> Ketersediaan data akan dikonfirmasi oleh admin</li>
-                    </ul>
-                </div>
-
-                <p class="text-sm text-gray-500 mb-4">
-                    Tidak punya surat pengantar? Unduh contohnya di sini:
-                </p>
-
-                <!-- Template Downloads -->
-                <div class="mb-6">
-                    <h4 class="font-semibold mb-2">Template Surat Pengantar</h4>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
-                            <thead>
-                                <tr class="bg-gray-100 text-sm">
-                                    <th class="py-2 px-4 border-b text-left">Jenis Surat</th>
-                                    <th class="py-2 px-4 border-b text-left">Keterangan</th>
-                                    <th class="py-2 px-4 border-b text-left">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="py-2 px-4 border-b">Surat Pengantar Umum</td>
-                                    <td class="py-2 px-4 border-b">Untuk pengajuan data secara umum atau keperluan
-                                        pribadi.</td>
-                                    <td class="py-2 px-4 border-b">
-                                        <a href="#" class="text-blue-600 hover:underline font-medium">Unduh
-                                            .docx</a>
-                                    </td>
-                                </tr>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="py-2 px-4 border-b">Surat Pengantar Penelitian</td>
-                                    <td class="py-2 px-4 border-b">Khusus untuk mahasiswa atau peneliti.</td>
-                                    <td class="py-2 px-4 border-b">
-                                        <a href="#" class="text-blue-600 hover:underline font-medium">Unduh
-                                            .docx</a>
-                                    </td>
-                                </tr>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="py-2 px-4 border-b">Surat Pengantar Instansi</td>
-                                    <td class="py-2 px-4 border-b">Untuk pengajuan resmi dari instansi
-                                        pemerintah/swasta.</td>
-                                    <td class="py-2 px-4 border-b">
-                                        <a href="#" class="text-blue-600 hover:underline font-medium">Unduh
-                                            .docx</a>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Category Selection -->
-                <div class="mb-6">
-                    <h4 class="font-semibold text-gray-700 mb-2">Kategori Pengajuan</h4>
-                    <div class="flex space-x-4">
-                        <button type="button" id="btn-pnbp"
-                            class="px-6 py-2 rounded-lg bg-indigo-600 text-white font-semibold shadow-md transition-colors duration-200 hover:bg-indigo-700">
-                            PNBP
-                            <span class="ml-2 text-xs bg-white bg-opacity-20 px-2 py-1 rounded">(1 Dokumen)</span>
-                        </button>
-                        <button type="button" id="btn-nonpnbp"
-                            class="px-6 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold shadow-md transition-colors duration-200 hover:bg-gray-300">
-                            Non-PNBP
-                            <span class="ml-2 text-xs bg-gray-400 bg-opacity-50 px-2 py-1 rounded">(4 Dokumen)</span>
-                        </button>
+                                    @endforeach
+                                @else
+                                    <div class="text-center py-8">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <h3 class="mt-2 text-sm font-medium text-gray-900">Belum ada pengajuan</h3>
+                                        <p class="mt-1 text-sm text-gray-500">Mulai dengan mengajukan surat/data
+                                            pertama Anda.</p>
+                                        <div class="mt-6">
+                                            <button onclick="showSection('submit')"
+                                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                                </svg>
+                                                Ajukan Sekarang
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Category Information -->
-                    <div id="category-info" class="mt-4 p-4 bg-gray-50 rounded-lg">
-                        <div id="pnbp-info" class="category-info">
-                            <h5 class="font-semibold text-gray-700 mb-2">Persyaratan PNBP:</h5>
-                            <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">
-                                <li><strong>1 Dokumen:</strong> Surat Pengantar dari Instansi/Organisasi</li>
-                                <li><strong>Jenis Data:</strong> Semua jenis data meteorologi yang tersedia</li>
-                                <li><strong>Biaya:</strong> Sesuai tarif PNBP yang berlaku</li>
-                                <li><strong>Penggunaan:</strong> Keperluan umum atau komersial</li>
-                            </ul>
+                    <div class="space-y-6">
+                        <!-- Quick Submit Card -->
+                        <div
+                            class="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white card-hover">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold">Ajukan Surat/Data</h3>
+                                <svg class="w-8 h-8 opacity-80" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <p class="text-blue-100 mb-6">Ajukan permintaan data meteorologi, klimatologi, dan
+                                geofisika dengan mudah dan cepat.</p>
+                            <button onclick="showSection('submit')"
+                                class="w-full bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 backdrop-blur-sm border border-white border-opacity-20">
+                                Mulai Pengajuan →
+                            </button>
                         </div>
 
-                        <div id="nonpnbp-info" class="category-info hidden">
-                            <h5 class="font-semibold text-gray-700 mb-2">Persyaratan Non-PNBP:</h5>
-                            <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">
-                                <li><strong>Jenis Data:</strong> Semua jenis data meteorologi yang tersedia (sama dengan
-                                    PNBP)</li>
-                                <li><strong>4 Dokumen yang diperlukan:</strong></li>
-                                <li class="ml-4">1. Surat Pengantar dari Universitas/Institusi Penelitian</li>
-                                <li class="ml-4">2. Dokumen Proposal/Karya Ilmiah</li>
-                                <li class="ml-4">3. Dokumen Pendukung Penelitian</li>
-                                <li class="ml-4">4. Dokumen Pendukung Tambahan (opsional)</li>
-                                <li><strong>Biaya:</strong> Gratis untuk penelitian/akademik</li>
-                                <li><strong>Penggunaan:</strong> Khusus penelitian dan akademik</li>
-                            </ul>
+                        <!-- Help Card -->
+                        <div class="bg-white rounded-2xl shadow-lg p-6 card-hover border border-gray-100">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-900">Bantuan & Panduan</h3>
+                                <svg class="w-8 h-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <p class="text-gray-600 mb-6">Pelajari panduan lengkap untuk mengajukan berbagai jenis data
+                                dan surat.</p>
+                            <button onclick="showSection('guidelines')"
+                                class="w-full bg-green-50 hover:bg-green-100 text-green-700 font-semibold py-3 px-4 rounded-xl transition-all duration-200 border border-green-200">
+                                Lihat Panduan →
+                            </button>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Application Form -->
-                <form id="submission-form" action="{{ route('user.submit-application') }}" method="POST"
-                    enctype="multipart/form-data" class="space-y-6">
-                    @csrf
-                    <input type="hidden" name="type" id="kategori_input" value="pnbp">
-                    <input type="hidden" name="guideline_id" id="guideline_id_input">
-
-                    <!-- Loading State -->
-                    <div id="form-loading" class="text-center py-8 hidden">
-                        <div class="spinner mx-auto mb-4"></div>
-                        <p class="text-gray-600">Memuat formulir...</p>
+            <!-- Guidelines Section - FIXED -->
+            <section id="guidelines" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">Panduan Pengajuan</h2>
+                            <p class="text-gray-600 mt-2">Pilih jenis data atau surat yang ingin Anda ajukan</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm text-gray-500">{{ count($guidelines ?? []) }} jenis layanan tersedia</p>
+                        </div>
                     </div>
 
-                    <!-- Error State -->
-                    <div id="form-error" class="hidden">
-                        <div class="error-message">
-                            <p><strong>Error:</strong> <span id="error-text"></span></p>
-                            <button type="button" onclick="retryLoadForm()" class="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                                Coba Lagi
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="guidelinesContainer">
+                        @if (isset($guidelines) && count($guidelines) > 0)
+                            @foreach ($guidelines as $guideline)
+                                @php
+                                    // Safe handling untuk required_documents
+                                    $requiredDocs = safe_json_decode($guideline->required_documents, []);
+                                @endphp
+                                <div
+                                    class="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-2xl p-6 card-hover group">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div
+                                            class="p-3 rounded-xl bg-indigo-100 group-hover:bg-indigo-200 transition-colors">
+                                            <svg class="w-8 h-8 text-indigo-600" fill="currentColor"
+                                                viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd"
+                                                    d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                                                    clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                        <span
+                                            class="text-xs font-semibold px-3 py-1 rounded-full {{ $guideline->type === 'pnbp' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800' }}">
+                                            {{ $guideline->type === 'pnbp' ? 'PNBP' : 'GRATIS' }}
+                                        </span>
+                                    </div>
+
+                                    <h3
+                                        class="text-xl font-bold text-gray-900 mb-3 group-hover:text-indigo-600 transition-colors">
+                                        {{ $guideline->title ?? 'Untitled' }}
+                                    </h3>
+
+                                    <p class="text-gray-600 mb-4 line-clamp-3">
+                                        {{ $guideline->description ?? 'No description available' }}
+                                    </p>
+
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-700">Biaya:</span>
+                                            <span
+                                                class="text-lg font-bold {{ ($guideline->fee ?? 0) > 0 ? 'text-orange-600' : 'text-green-600' }}">
+                                                {{ ($guideline->fee ?? 0) > 0 ? 'Rp ' . format_currency($guideline->fee) : 'GRATIS' }}
+                                            </span>
+                                        </div>
+
+                                        @if (count($requiredDocs) > 0)
+                                            <div>
+                                                <span class="text-sm font-medium text-gray-700">Dokumen yang
+                                                    diperlukan:</span>
+                                                <ul class="mt-2 space-y-1">
+                                                    @foreach ($requiredDocs as $doc)
+                                                        <li class="text-sm text-gray-600 flex items-center">
+                                                            <svg class="w-4 h-4 text-green-500 mr-2"
+                                                                fill="currentColor" viewBox="0 0 20 20">
+                                                                <path fill-rule="evenodd"
+                                                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                                    clip-rule="evenodd"></path>
+                                                            </svg>
+                                                            {{ is_string($doc) ? $doc : 'Document' }}
+                                                        </li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        @endif
+
+                                        <button onclick="selectGuideline({{ $guideline->id }})"
+                                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 group-hover:shadow-lg">
+                                            Pilih Layanan Ini
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="col-span-full text-center py-12">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h3 class="mt-2 text-sm font-medium text-gray-900">Tidak ada panduan tersedia</h3>
+                                <p class="mt-1 text-sm text-gray-500">Hubungi administrator untuk informasi lebih
+                                    lanjut.</p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </section>
+
+            <!-- Submit Section -->
+            <section id="submit" class="content-section hidden">
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                        <div class="text-center mb-8">
+                            <div
+                                class="w-20 h-20 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-10 h-10 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-3xl font-bold text-gray-900">Ajukan Surat/Data</h2>
+                            <p class="text-gray-600 mt-2">Isi formulir di bawah untuk mengajukan permintaan data atau
+                                surat</p>
+                        </div>
+
+                        <form id="submissionForm" class="space-y-8">
+                            @csrf
+
+                            <!-- Guideline Selection -->
+                            <div>
+                                <label for="guideline_id" class="block text-sm font-semibold text-gray-700 mb-3">Jenis
+                                    Layanan</label>
+                                <select id="guideline_id" name="guideline_id" required
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                                    <option value="">Pilih jenis layanan yang diinginkan</option>
+                                    @if (isset($guidelines))
+                                        @foreach ($guidelines as $guideline)
+                                            <option value="{{ $guideline->id }}" data-type="{{ $guideline->type }}"
+                                                data-fee="{{ $guideline->fee ?? 0 }}"
+                                                data-documents="{{ htmlspecialchars(json_encode(safe_json_decode($guideline->required_documents, [])), ENT_QUOTES, 'UTF-8') }}">
+                                                {{ $guideline->title ?? 'Untitled' }}
+                                                @if (($guideline->fee ?? 0) > 0)
+                                                    (Rp {{ format_currency($guideline->fee) }})
+                                                @else
+                                                    (GRATIS)
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <div id="selectedGuidelineInfo"
+                                    class="hidden mt-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                    <!-- Will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <!-- Purpose -->
+                            <div>
+                                <label for="purpose" class="block text-sm font-semibold text-gray-700 mb-3">Tujuan
+                                    Penggunaan Data</label>
+                                <textarea id="purpose" name="purpose" rows="4" required
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                                    placeholder="Jelaskan secara detail untuk keperluan apa data ini akan digunakan..."></textarea>
+                            </div>
+
+                            <!-- Date Range -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="start_date"
+                                        class="block text-sm font-semibold text-gray-700 mb-3">Tanggal Mulai
+                                        Data</label>
+                                    <input type="date" id="start_date" name="start_date" required
+                                        class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                                </div>
+                                <div>
+                                    <label for="end_date"
+                                        class="block text-sm font-semibold text-gray-700 mb-3">Tanggal Akhir
+                                        Data</label>
+                                    <input type="date" id="end_date" name="end_date" required
+                                        class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                                </div>
+                            </div>
+
+                            <!-- Document Upload -->
+                            <div id="documentsSection" class="hidden">
+                                <label class="block text-sm font-semibold text-gray-700 mb-3">Upload Dokumen
+                                    Pendukung</label>
+                                <div id="documentFields" class="space-y-4">
+                                    <!-- Will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="pt-6 border-t border-gray-200">
+                                <button type="submit" id="submitBtn"
+                                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
+                                    <span id="submitBtnText">Ajukan Permohonan</span>
+                                    <svg id="submitBtnLoader"
+                                        class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white inline"
+                                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10"
+                                            stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section id="history" class="content-section hidden">
+                <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">Riwayat Pengajuan</h2>
+                            <p class="text-gray-600 mt-2">Daftar semua pengajuan surat dan data Anda</p>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <select id="statusFilter"
+                                class="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Semua Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="verified">Terverifikasi</option>
+                                <option value="payment_pending">Menunggu Pembayaran</option>
+                                <option value="paid">Sudah Bayar</option>
+                                <option value="processing">Sedang Diproses</option>
+                                <option value="completed">Selesai</option>
+                                <option value="rejected">Ditolak</option>
+                            </select>
+                            <button onclick="loadSubmissions()"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl font-medium transition-colors">
+                                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                                Refresh
                             </button>
                         </div>
                     </div>
 
-                    <div>
-                        <label for="jenis_data" class="block text-gray-700 font-semibold mb-2">Jenis Data yang
-                            Diajukan <span class="text-red-500">*</span></label>
-                        <select id="jenis_data" name="jenis_data"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            required>
-                            <option value="">Memuat data...</option>
-                        </select>
+                    <div class="overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            No. Surat</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Jenis Data</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Tipe</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Status</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Tanggal</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="submissionsTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                                            <div class="flex items-center justify-center">
+                                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400"
+                                                    xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                    viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                        stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                    </path>
+                                                </svg>
+                                                Loading...
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+                </div>
+            </section>
 
-                    <!-- FREE DATE SELECTION -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="free-date-input">
-                            <label for="tanggal_mulai" class="block text-gray-700 font-semibold mb-2">
-                                Tanggal Mulai Data <span class="text-red-500">*</span>
-                            </label>
-                            <input type="date" id="tanggal_mulai" name="tanggal_mulai"
-                                class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                required>
-                            <div class="flex items-center justify-between mt-1">
-                                <p class="text-xs text-gray-500">Bebas pilih tanggal kapan saja</p>
-                                <span id="start-date-type" class="date-info-badge"></span>
+            <!-- Profile Section -->
+            <section id="profile" class="content-section hidden">
+                <div class="max-w-2xl mx-auto">
+                    <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                        <div class="text-center mb-8">
+                            <div
+                                class="w-24 h-24 mx-auto bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+                                <span
+                                    class="text-3xl font-bold text-indigo-600">{{ substr(Auth::user()->name ?? 'U', 0, 1) }}</span>
                             </div>
+                            <h2 class="text-3xl font-bold text-gray-900">Profil Saya</h2>
+                            <p class="text-gray-600 mt-2">Kelola informasi akun Anda</p>
                         </div>
-                        <div class="free-date-input">
-                            <label for="tanggal_selesai" class="block text-gray-700 font-semibold mb-2">
-                                Tanggal Selesai Data <span class="text-red-500">*</span>
-                            </label>
-                            <input type="date" id="tanggal_selesai" name="tanggal_selesai"
-                                class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                required>
-                            <div class="flex items-center justify-between mt-1">
-                                <p class="text-xs text-gray-500">Harus sama atau setelah tanggal mulai</p>
-                                <span id="end-date-type" class="date-info-badge"></span>
+
+                        <form id="profileForm" class="space-y-6">
+                            @csrf
+                            @method('PUT')
+
+                            <div>
+                                <label for="name" class="block text-sm font-semibold text-gray-700 mb-3">Nama
+                                    Lengkap</label>
+                                <input type="text" id="name" name="name"
+                                    value="{{ Auth::user()->name ?? '' }}" required
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
                             </div>
-                        </div>
+
+                            <div>
+                                <label for="email"
+                                    class="block text-sm font-semibold text-gray-700 mb-3">Email</label>
+                                <input type="email" id="email" name="email"
+                                    value="{{ Auth::user()->email ?? '' }}" required
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
+                            </div>
+
+                            <div>
+                                <label for="phone" class="block text-sm font-semibold text-gray-700 mb-3">Nomor
+                                    Telepon</label>
+                                <input type="tel" id="phone" name="phone"
+                                    value="{{ Auth::user()->phone ?? '' }}"
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                                    placeholder="Contoh: 081234567890">
+                            </div>
+
+                            <div>
+                                <label for="password" class="block text-sm font-semibold text-gray-700 mb-3">Password
+                                    Baru (Opsional)</label>
+                                <input type="password" id="password" name="password"
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                                    placeholder="Kosongkan jika tidak ingin mengubah password">
+                            </div>
+
+                            <div>
+                                <label for="password_confirmation"
+                                    class="block text-sm font-semibold text-gray-700 mb-3">Konfirmasi Password</label>
+                                <input type="password" id="password_confirmation" name="password_confirmation"
+                                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                                    placeholder="Konfirmasi password baru">
+                            </div>
+
+                            <div class="pt-6 border-t border-gray-200">
+                                <button type="submit"
+                                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
+                                    Update Profil
+                                </button>
+                            </div>
+                        </form>
                     </div>
-
-                    <!-- Enhanced Date Presets -->
-                    <div id="date-presets" class="flex flex-wrap gap-2 mb-4">
-                        <p class="w-full text-sm text-gray-600 mb-2">Preset tanggal populer:</p>
-                        <button type="button" onclick="setDatePreset('yesterday')"
-                            class="preset-button px-3 py-1 text-xs bg-green-200 hover:bg-green-300 rounded-lg transition-colors">
-                            Kemarin
-                        </button>
-                        <button type="button" onclick="setDatePreset('last-week')"
-                            class="preset-button px-3 py-1 text-xs bg-green-200 hover:bg-green-300 rounded-lg transition-colors">
-                            Minggu Lalu
-                        </button>
-                        <button type="button" onclick="setDatePreset('last-month')"
-                            class="preset-button px-3 py-1 text-xs bg-green-200 hover:bg-green-300 rounded-lg transition-colors">
-                            Bulan Lalu
-                        </button>
-                        <button type="button" onclick="setDatePreset('last-year')"
-                            class="preset-button px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                            Tahun Lalu
-                        </button>
-                        <button type="button" onclick="setDatePreset('last-5-years')"
-                            class="preset-button px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                            5 Tahun Terakhir
-                        </button>
-                        <button type="button" onclick="setDatePreset('last-10-years')"
-                            class="preset-button px-3 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                            10 Tahun Terakhir
-                        </button>
-                        <button type="button" onclick="setDatePreset('historical')"
-                            class="preset-button px-3 py-1 text-xs bg-blue-200 hover:bg-blue-300 rounded-lg transition-colors">
-                            Data Historis (Sejak 2000)
-                        </button>
-                        <button type="button" onclick="setDatePreset('custom-historical')"
-                            class="preset-button px-3 py-1 text-xs bg-purple-200 hover:bg-purple-300 rounded-lg transition-colors">
-                            Custom Historical
-                        </button>
-                    </div>
-
-                    <div>
-                        <label for="keperluan" class="block text-gray-700 font-semibold mb-2">Keperluan Penggunaan
-                            Data <span class="text-red-500">*</span></label>
-                        <textarea id="keperluan" name="keperluan" rows="4"
-                            placeholder="Jelaskan secara detail keperluan dan tujuan penggunaan data meteorologi yang diminta..."
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            required></textarea>
-                    </div>
-
-                    <!-- Upload Documents Section -->
-                    <div id="file-upload-section">
-                        <h4 class="font-semibold text-gray-700 mb-4">Upload Dokumen Persyaratan</h4>
-                        <div id="document-uploads">
-                            <!-- Documents will be dynamically generated here based on category -->
-                        </div>
-                    </div>
-
-                    <button type="submit" id="submit-btn"
-                        class="w-full p-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center justify-center">
-                        <span id="submit-text">Ajukan Surat</span>
-                        <div id="submit-spinner" class="spinner hidden"></div>
-                    </button>
-                </form>
-            </div>
-        </section>
-
-        <!-- Panduan Section -->
-        <section id="panduan" class="content-section">
-            <div class="bg-white p-8 rounded-lg shadow-md">
-                <h3 class="text-2xl font-bold mb-4">Panduan Pengajuan Surat/Data</h3>
-                <p class="text-gray-600 mb-6">Klik pada jenis data di bawah ini untuk melihat detail, contoh, dan
-                    syarat pengajuannya.</p>
-
-                <div id="panduan-loading" class="text-center py-8">
-                    <div class="spinner mx-auto mb-4"></div>
-                    <p class="text-gray-600">Memuat panduan...</p>
                 </div>
-
-                <div id="accordion-container" class="space-y-4">
-                    <!-- Guidelines will be loaded here -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Profile Section -->
-        <section id="profile" class="content-section">
-            <div class="bg-white p-8 rounded-lg shadow-md">
-                <h3 class="text-2xl font-bold mb-4">Profil Pengguna</h3>
-                <form id="profile-form" class="space-y-6">
-                    @csrf
-                    <div>
-                        <label for="profile_name" class="block text-gray-700 font-semibold mb-2">Nama Lengkap</label>
-                        <input type="text" id="profile_name" name="name" value="{{ Auth::user()->name }}"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            required>
-                    </div>
-                    <div>
-                        <label for="profile_email" class="block text-gray-700 font-semibold mb-2">Email</label>
-                        <input type="email" id="profile_email" name="email" value="{{ Auth::user()->email }}"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            required>
-                    </div>
-                    <div>
-                        <label for="profile_phone" class="block text-gray-700 font-semibold mb-2">Nomor
-                            Telepon</label>
-                        <input type="text" id="profile_phone" name="phone"
-                            value="{{ Auth::user()->phone ?? '' }}"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <button type="submit"
-                        class="w-full p-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors duration-200">
-                        Update Profil
-                    </button>
-                </form>
-            </div>
-        </section>
-    </main>
-
-    <!-- Payment Modal -->
-    <div id="paymentModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closePaymentModal()">&times;</span>
-            <h4 class="text-xl font-bold mb-4">Upload Bukti Pembayaran</h4>
-            <form id="paymentForm" class="space-y-4" method="POST" enctype="multipart/form-data">
-                @csrf
-                <input type="hidden" id="payment_application_id" name="application_id">
-                <div>
-                    <label for="payment_proof" class="block text-gray-700 font-semibold mb-2">Bukti Pembayaran</label>
-                    <input type="file" id="payment_proof" name="payment_proof" accept="image/*,application/pdf"
-                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required>
-                    <p class="text-sm text-gray-500 mt-1">Format: JPG, PNG, PDF (Max: 2MB)</p>
-                </div>
-                <button type="submit"
-                    class="w-full p-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors duration-200">
-                    Upload Bukti Pembayaran
-                </button>
-            </form>
+            </section>
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeEditModal()">&times;</span>
-            <h4 class="text-xl font-bold mb-4">Edit Pengajuan</h4>
-            <form id="editForm" class="space-y-4" method="POST" enctype="multipart/form-data">
+    <!-- Detail Modal -->
+    <div id="detailModal"
+        class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Detail Pengajuan</h3>
+                <button onclick="hideModal('detailModal')" class="text-gray-500 hover:text-gray-700 p-2">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="modalContent">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal"
+        class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-2xl mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Upload Bukti Pembayaran</h3>
+                <button onclick="hideModal('paymentModal')" class="text-gray-500 hover:text-gray-700 p-2">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="paymentInfo" class="mb-6">
+                <!-- Payment info will be populated by JavaScript -->
+            </div>
+
+            <form id="paymentForm" class="space-y-6">
                 @csrf
-                @method('PUT')
-                <input type="hidden" id="edit_application_id" name="application_id">
+                <input type="hidden" id="paymentSubmissionId" name="submission_id">
+
                 <div>
-                    <label for="edit_no_surat" class="block text-gray-700 font-semibold mb-2">No. Surat</label>
-                    <input type="text" id="edit_no_surat"
-                        class="w-full p-3 border border-gray-300 rounded-lg bg-gray-100" readonly>
-                </div>
-                <div>
-                    <label for="edit_jenis_data" class="block text-gray-700 font-semibold mb-2">Jenis Data</label>
-                    <select id="edit_jenis_data" name="jenis_data"
-                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <!-- Options will be populated -->
+                    <label for="payment_method" class="block text-sm font-semibold text-gray-700 mb-3">Metode
+                        Pembayaran</label>
+                    <select id="payment_method" name="payment_method" required
+                        class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Pilih metode pembayaran</option>
+                        <option value="Transfer Bank">Transfer Bank</option>
+                        <option value="E-Wallet">E-Wallet</option>
+                        <option value="Cash">Tunai</option>
                     </select>
                 </div>
+
                 <div>
-                    <label for="edit_keperluan" class="block text-gray-700 font-semibold mb-2">Keperluan</label>
-                    <textarea id="edit_keperluan" name="keperluan" rows="4"
-                        class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    <label for="payment_reference" class="block text-sm font-semibold text-gray-700 mb-3">Nomor
+                        Referensi</label>
+                    <input type="text" id="payment_reference" name="payment_reference"
+                        class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Nomor transaksi/referensi pembayaran">
                 </div>
-                <button type="submit"
-                    class="w-full p-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors duration-200">
-                    Simpan Perubahan
-                </button>
+
+                <div>
+                    <label for="payment_proof" class="block text-sm font-semibold text-gray-700 mb-3">Bukti
+                        Pembayaran</label>
+                    <input type="file" id="payment_proof" name="payment_proof" accept="image/*" required
+                        class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-sm text-gray-500 mt-2">Upload foto/scan bukti pembayaran (JPG, PNG, max 5MB)</p>
+                </div>
+
+                <div class="pt-6 border-t border-gray-200">
+                    <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200">
+                        Upload Bukti Pembayaran
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
     <script>
-        let currentGuidelines = [];
-        let isLoading = false;
+        // Global variables
+        let currentSubmissionId = null;
+        let currentPaymentAmount = 0;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const navLinks = document.querySelectorAll('a[id^="nav-"]');
-            const sections = document.querySelectorAll('.content-section');
-
-            // Function to show the correct section and update the active link
-            const showSection = (id) => {
-                sections.forEach(section => {
-                    section.classList.remove('active');
-                });
-                const targetSection = document.getElementById(id);
-                if (targetSection) {
-                    targetSection.classList.add('active');
-                }
-
-                navLinks.forEach(link => {
-                    link.classList.remove('nav-active');
-                });
-                const targetNavLink = document.getElementById(`nav-${id}`);
-                if (targetNavLink) {
-                    targetNavLink.classList.add('nav-active');
-                }
-            };
-
-            // Event listener for navigation links
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const targetId = e.currentTarget.getAttribute('href').substring(1);
-                    showSection(targetId);
-
-                    // Load specific content for certain sections
-                    if (targetId === 'panduan') {
-                        loadGuidelines();
-                    }
-                });
-            });
-
-            // Initial section display
-            showSection('dashboard');
-
-            // Initialize form handlers
-            initializeFormHandlers();
-            loadGuidelinesForForm();
-
-            // Remove date restrictions - let users pick ANY date
-            const tanggalMulai = document.getElementById('tanggal_mulai');
-            const tanggalSelesai = document.getElementById('tanggal_selesai');
-
-            // Allow any date from 1900 to 2100
-            if (tanggalMulai) {
-                tanggalMulai.removeAttribute('min');
-                tanggalMulai.removeAttribute('max');
-            }
-
-            if (tanggalSelesai) {
-                tanggalSelesai.removeAttribute('min');
-                tanggalSelesai.removeAttribute('max');
-            }
-
-            // Update end date minimum when start date changes (logical constraint only)
-            if (tanggalMulai) {
-                tanggalMulai.addEventListener('change', function() {
-                    validateDateRange();
-                    updateDateTypeBadge();
-                });
-            }
-
-            if (tanggalSelesai) {
-                tanggalSelesai.addEventListener('change', function() {
-                    validateDateRange();
-                    updateDateTypeBadge();
-                });
-            }
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeNavigation();
+            loadSubmissions();
+            setupFormHandlers();
         });
 
-        // FIXED: Load Guidelines for Form (Dropdown)
-        async function loadGuidelinesForForm() {
-            const jenisDataSelect = document.getElementById('jenis_data');
-            
-            if (isLoading) return;
-            isLoading = true;
+        // Navigation functionality
+        function initializeNavigation() {
+            const navLinks = document.querySelectorAll('[id^="nav-"]');
+            const sections = {
+                'dashboard': document.getElementById('dashboard'),
+                'guidelines': document.getElementById('guidelines'),
+                'submit': document.getElementById('submit'),
+                'history': document.getElementById('history'),
+                'profile': document.getElementById('profile')
+            };
 
-            try {
-                jenisDataSelect.innerHTML = '<option value="">Memuat data...</option>';
-                
-                // FIXED: Use the correct route that exists
-                const response = await fetch("{{ route('user.ajax.data-types') }}", {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    }
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    showSection(targetId);
                 });
+            });
+        }
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        function showSection(sectionId) {
+            // Update navigation styles
+            const navLinks = document.querySelectorAll('[id^="nav-"]');
+            navLinks.forEach(link => {
+                link.classList.remove('bg-white', 'bg-opacity-20');
+                link.classList.add('hover:bg-white', 'hover:bg-opacity-20');
+            });
+            const targetNav = document.getElementById(`nav-${sectionId}`);
+            if (targetNav) {
+                targetNav.classList.remove('hover:bg-white', 'hover:bg-opacity-20');
+                targetNav.classList.add('bg-white', 'bg-opacity-20');
+            }
+
+            // Show/hide sections
+            const sections = ['dashboard', 'guidelines', 'submit', 'history', 'profile'];
+            sections.forEach(section => {
+                const element = document.getElementById(section);
+                if (element) {
+                    element.classList.add('hidden');
                 }
+            });
 
-                const guidelines = await response.json();
-                currentGuidelines = guidelines;
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
 
-                jenisDataSelect.innerHTML = '<option value="">Pilih Jenis Data</option>';
-                
-                if (guidelines && Array.isArray(guidelines) && guidelines.length > 0) {
-                    guidelines.forEach(guideline => {
-                        jenisDataSelect.innerHTML += `<option value="${guideline.id}" data-fee="${guideline.fee || 0}">${guideline.title}</option>`;
-                    });
-                } else {
-                    jenisDataSelect.innerHTML = '<option value="">Tidak ada data tersedia</option>';
-                }
-
-                // Event listener untuk update fee berdasarkan selection
-                jenisDataSelect.addEventListener('change', (e) => {
-                    const selectedId = e.target.value;
-                    if (selectedId) {
-                        document.getElementById('guideline_id_input').value = selectedId;
-                        const guideline = guidelines.find(g => g.id == selectedId);
-                        const category = document.getElementById('kategori_input').value;
-                        updateFeeInformation(guideline, category);
-                    }
-                });
-
-                // Hide loading states
-                document.getElementById('form-loading').classList.add('hidden');
-                document.getElementById('form-error').classList.add('hidden');
-
-            } catch (error) {
-                console.error('Error loading guidelines:', error);
-                jenisDataSelect.innerHTML = '<option value="">Error loading data - silakan refresh halaman</option>';
-                
-                showErrorMessage(`Gagal memuat data jenis: ${error.message}`);
-            } finally {
-                isLoading = false;
+            // Load data for specific sections
+            if (sectionId === 'history') {
+                loadSubmissions();
             }
         }
 
-        // FIXED: Load Guidelines for Display  
-        async function loadGuidelines() {
-            const container = document.getElementById('accordion-container');
-            const loadingDiv = document.getElementById('panduan-loading');
-            
-            if (isLoading) return;
-            
-            loadingDiv.classList.remove('hidden');
-            container.innerHTML = '';
+        // Setup form handlers - FIXED
+        function setupFormHandlers() {
+            // Guideline selection handler
+            const guidelineSelect = document.getElementById('guideline_id');
+            if (guidelineSelect) {
+                guidelineSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const infoDiv = document.getElementById('selectedGuidelineInfo');
+                    const documentsSection = document.getElementById('documentsSection');
 
-            try {
-                // FIXED: Use the correct route 
-                const response = await fetch("{{ route('user.ajax.data-types') }}", {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    }
-                });
+                    if (selectedOption.value) {
+                        const type = selectedOption.getAttribute('data-type');
+                        const fee = selectedOption.getAttribute('data-fee');
+                        const documentsData = selectedOption.getAttribute('data-documents');
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                        // Safe JSON parse - FIXED
+                        let documents = [];
+                        try {
+                            if (documentsData && documentsData !== 'null' && documentsData !== '' &&
+                                documentsData !== '[]') {
+                                documents = JSON.parse(documentsData);
+                                if (!Array.isArray(documents)) {
+                                    documents = [];
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing documents JSON:', e);
+                            documents = [];
+                        }
 
-                const guidelines = await response.json();
-                
-                loadingDiv.classList.add('hidden');
-
-                if (guidelines && Array.isArray(guidelines) && guidelines.length > 0) {
-                    guidelines.forEach(guideline => {
-                        container.innerHTML += createGuidelineAccordion(guideline);
-                    });
-                } else {
-                    container.innerHTML = '<p class="text-center text-gray-500 py-8">Tidak ada panduan tersedia</p>';
-                }
-
-            } catch (error) {
-                console.error('Error loading guidelines:', error);
-                loadingDiv.classList.add('hidden');
-                container.innerHTML = `
-                    <div class="text-center p-6 bg-red-50 border border-red-200 rounded-lg">
-                        <p class="text-red-700 mb-4">Gagal memuat panduan: ${error.message}</p>
-                        <button onclick="loadGuidelines()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                            Coba Lagi
-                        </button>
-                    </div>
-                `;
-            }
-        }
-
-        // Create Guideline Accordion HTML
-        function createGuidelineAccordion(guideline) {
-            return `
-                <div class="border border-gray-200 rounded-lg overflow-hidden mb-4">
-                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-200"
-                            onclick="toggleAccordion(this)">
-                        <span class="text-lg font-semibold text-gray-800">${guideline.title}</span>
-                        <svg class="w-6 h-6 transform transition-transform duration-200" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div class="accordion-content p-4 bg-white text-gray-700">
-                        <p class="mb-4">${guideline.description || 'Panduan lengkap untuk pengajuan data meteorologi maritim.'}</p>
-                        
-                        <div class="mb-4">
-                            <h4 class="font-bold mb-2">Informasi Biaya:</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                <div class="bg-yellow-50 p-3 rounded border border-yellow-200">
-                                    <p class="font-semibold text-yellow-800">PNBP (Komersial):</p>
-                                    <p class="text-yellow-700">Rp ${new Intl.NumberFormat('id-ID').format(guideline.fee || 0)}</p>
+                        // Show guideline info
+                        infoDiv.innerHTML = `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h4 class="font-semibold text-blue-900">Tipe Layanan</h4>
+                                    <p class="text-blue-700">${type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)'}</p>
                                 </div>
-                                <div class="bg-green-50 p-3 rounded border border-green-200">
-                                    <p class="font-semibold text-green-800">Non-PNBP (Penelitian):</p>
-                                    <p class="text-green-700">Gratis</p>
+                                <div>
+                                    <h4 class="font-semibold text-blue-900">Biaya</h4>
+                                    <p class="text-blue-700">${fee > 0 ? 'Rp ' + new Intl.NumberFormat('id-ID').format(fee) : 'GRATIS'}</p>
                                 </div>
                             </div>
-                        </div>
+                        `;
+                        infoDiv.classList.remove('hidden');
 
-                        <div class="mb-4">
-                            <h4 class="font-bold mb-2">Persyaratan Dokumen:</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                <div class="bg-blue-50 p-3 rounded border border-blue-200">
-                                    <p class="font-semibold text-blue-800">PNBP (1 Dokumen):</p>
-                                    <ul class="text-blue-700 list-disc list-inside mt-1">
-                                        <li>Surat Pengantar Instansi/Organisasi</li>
-                                    </ul>
+                        // Show document fields if required
+                        if (documents.length > 0) {
+                            const documentFields = document.getElementById('documentFields');
+                            documentFields.innerHTML = documents.map((doc, index) => `
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">${doc}</label>
+                                    <input type="file" name="documents[]" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required 
+                                           class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                                    <p class="text-xs text-gray-500 mt-1">Format: PDF, DOC, DOCX, JPG, PNG (Max 5MB)</p>
                                 </div>
-                                <div class="bg-purple-50 p-3 rounded border border-purple-200">
-                                    <p class="font-semibold text-purple-800">Non-PNBP (4 Dokumen):</p>
-                                    <ul class="text-purple-700 list-disc list-inside mt-1 text-xs">
-                                        <li>Surat Pengantar Universitas</li>
-                                        <li>Proposal/Karya Ilmiah</li>
-                                        <li>Dokumen Pendukung</li>
-                                        <li>Dokumen Tambahan (Opsional)</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Enhanced date validation (warning only, not blocking)
-        function validateDateRange() {
-            const tanggalMulai = document.getElementById('tanggal_mulai');
-            const tanggalSelesai = document.getElementById('tanggal_selesai');
-
-            const startDate = tanggalMulai ? tanggalMulai.value : null;
-            const endDate = tanggalSelesai ? tanggalSelesai.value : null;
-
-            if (startDate && endDate) {
-                const start = new Date(startDate);
-                const end = new Date(endDate);
-                const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-
-                // Remove existing warnings
-                const existingWarning = document.getElementById('date-range-warning');
-                if (existingWarning) existingWarning.remove();
-
-                // Logical validation: end date must be >= start date
-                if (end < start) {
-                    showDateWarning('error', 'Tanggal selesai harus sama atau setelah tanggal mulai!');
-                    return false;
-                }
-
-                // Show info for very long ranges (informational only)
-                if (diffDays > 3650) { // 10 years
-                    showDateWarning('info',
-                        `Rentang waktu sangat panjang (${Math.ceil(diffDays/365)} tahun). Proses pengolahan data mungkin memerlukan waktu lebih lama.`
-                        );
-                }
-
-                // Show info for future dates
-                const today = new Date();
-                if (start > today || end > today) {
-                    showDateWarning('info',
-                        'Anda memilih tanggal masa depan. Admin akan mengkonfirmasi ketersediaan data proyeksi.');
-                }
-            }
-
-            return true;
-        }
-
-        function showDateWarning(type, message) {
-            const warningDiv = document.createElement('div');
-            warningDiv.id = 'date-range-warning';
-
-            if (type === 'error') {
-                warningDiv.className = 'mt-2 p-3 bg-red-50 border border-red-200 rounded-lg';
-                warningDiv.innerHTML = `
-                    <p class="text-red-700 text-sm">
-                        <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        ${message}
-                    </p>
-                `;
-            } else {
-                warningDiv.className = 'mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg';
-                warningDiv.innerHTML = `
-                    <p class="text-yellow-700 text-sm">
-                        <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        ${message}
-                    </p>
-                `;
-            }
-
-            // Insert after date inputs
-            const tanggalSelesai = document.getElementById('tanggal_selesai');
-            if (tanggalSelesai && tanggalSelesai.parentNode && tanggalSelesai.parentNode.parentNode) {
-                tanggalSelesai.parentNode.parentNode.appendChild(warningDiv);
-            }
-        }
-
-        // Update date type badges
-        function updateDateTypeBadge() {
-            const tanggalMulai = document.getElementById('tanggal_mulai');
-            const tanggalSelesai = document.getElementById('tanggal_selesai');
-            const startBadge = document.getElementById('start-date-type');
-            const endBadge = document.getElementById('end-date-type');
-
-            if (!tanggalMulai || !tanggalSelesai || !startBadge || !endBadge) return;
-
-            const today = new Date();
-            const startDate = tanggalMulai.value ? new Date(tanggalMulai.value) : null;
-            const endDate = tanggalSelesai.value ? new Date(tanggalSelesai.value) : null;
-
-            // Update start date badge
-            if (startDate) {
-                if (startDate > today) {
-                    startBadge.textContent = 'Proyeksi';
-                    startBadge.className = 'date-info-badge future-projection';
-                } else if (startDate >= new Date('1990-01-01')) {
-                    startBadge.textContent = 'Data Tersedia';
-                    startBadge.className = 'date-info-badge recent-data';
-                } else {
-                    startBadge.textContent = 'Data Historis';
-                    startBadge.className = 'date-info-badge historical-data';
-                }
-            }
-
-            // Update end date badge
-            if (endDate) {
-                if (endDate > today) {
-                    endBadge.textContent = 'Proyeksi';
-                    endBadge.className = 'date-info-badge future-projection';
-                } else if (endDate >= new Date('1990-01-01')) {
-                    endBadge.textContent = 'Data Tersedia';
-                    endBadge.className = 'date-info-badge recent-data';
-                } else {
-                    endBadge.textContent = 'Data Historis';
-                    endBadge.className = 'date-info-badge historical-data';
-                }
-            }
-        }
-
-        // Enhanced preset functions with more options
-        function setDatePreset(preset) {
-            const tanggalMulai = document.getElementById('tanggal_mulai');
-            const tanggalSelesai = document.getElementById('tanggal_selesai');
-            const today = new Date();
-
-            let startDate, endDate;
-
-            switch (preset) {
-                case 'yesterday':
-                    startDate = new Date(today);
-                    startDate.setDate(today.getDate() - 1);
-                    endDate = new Date(startDate);
-                    break;
-                case 'last-week':
-                    endDate = new Date(today);
-                    endDate.setDate(today.getDate() - 1);
-                    startDate = new Date(endDate);
-                    startDate.setDate(endDate.getDate() - 6);
-                    break;
-                case 'last-month':
-                    endDate = new Date(today);
-                    endDate.setDate(today.getDate() - 1);
-                    startDate = new Date(endDate);
-                    startDate.setMonth(endDate.getMonth() - 1);
-                    break;
-                case 'last-year':
-                    startDate = new Date(today.getFullYear() - 1, 0, 1); // 1 Jan tahun lalu
-                    endDate = new Date(today.getFullYear() - 1, 11, 31); // 31 Des tahun lalu
-                    break;
-                case 'last-5-years':
-                    startDate = new Date(today.getFullYear() - 5, 0, 1);
-                    endDate = new Date(today.getFullYear() - 1, 11, 31);
-                    break;
-                case 'last-10-years':
-                    startDate = new Date(today.getFullYear() - 10, 0, 1);
-                    endDate = new Date(today.getFullYear() - 1, 11, 31);
-                    break;
-                case 'historical':
-                    startDate = new Date(2000, 0, 1); // 1 Jan 2000
-                    endDate = new Date(2023, 11, 31); // 31 Des 2023
-                    break;
-                case 'custom-historical':
-                    // Open custom picker
-                    const userStart = prompt('Masukkan tanggal mulai (YYYY-MM-DD):', '1990-01-01');
-                    const userEnd = prompt('Masukkan tanggal selesai (YYYY-MM-DD):', '2000-12-31');
-                    if (userStart && userEnd) {
-                        startDate = new Date(userStart);
-                        endDate = new Date(userEnd);
+                            `).join('');
+                            documentsSection.classList.remove('hidden');
+                        } else {
+                            documentsSection.classList.add('hidden');
+                        }
                     } else {
-                        return;
+                        infoDiv.classList.add('hidden');
+                        documentsSection.classList.add('hidden');
                     }
-                    break;
-                default:
-                    return;
+                });
             }
 
-            if (tanggalMulai && tanggalSelesai) {
-                tanggalMulai.value = startDate.toISOString().split('T')[0];
-                tanggalSelesai.value = endDate.toISOString().split('T')[0];
-
-                // Trigger change events
-                tanggalMulai.dispatchEvent(new Event('change'));
-                tanggalSelesai.dispatchEvent(new Event('change'));
-
-                // Show confirmation
-                const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-                console.log(`Preset applied: ${preset} (${diffDays} hari)`);
-            }
-        }
-
-        function initializeFormHandlers() {
-            const pnbpBtn = document.getElementById('btn-pnbp');
-            const nonpnbpBtn = document.getElementById('btn-nonpnbp');
-
-            pnbpBtn.addEventListener('click', () => {
-                setCategory('pnbp', pnbpBtn, nonpnbpBtn);
-            });
-
-            nonpnbpBtn.addEventListener('click', () => {
-                setCategory('non_pnbp', nonpnbpBtn, pnbpBtn);
-            });
-
-            // Form submission
-            document.getElementById('submission-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-
-                // Validate date range before submission
-                if (!validateDateRange()) {
-                    alert('Mohon perbaiki tanggal sebelum melanjutkan.');
-                    return;
-                }
-
-                await submitApplication(e.target);
-            });
-
-            // Profile form submission
-            document.getElementById('profile-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await updateProfile(e.target);
-            });
-
-            // Payment form submission
-            document.getElementById('paymentForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await submitPayment(e.target);
-            });
-
-            // Set initial category
-            setCategory('pnbp', pnbpBtn, nonpnbpBtn);
-        }
-
-        function setCategory(category, activeBtn, inactiveBtn) {
-            document.getElementById('kategori_input').value = category;
-
-            activeBtn.classList.add('bg-indigo-600', 'text-white');
-            activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-            inactiveBtn.classList.remove('bg-indigo-600', 'text-white');
-            inactiveBtn.classList.add('bg-gray-200', 'text-gray-700');
-
-            // Show/hide category info
-            const pnbpInfo = document.getElementById('pnbp-info');
-            const nonpnbpInfo = document.getElementById('nonpnbp-info');
-
-            if (category === 'pnbp') {
-                pnbpInfo.classList.remove('hidden');
-                nonpnbpInfo.classList.add('hidden');
-            } else {
-                pnbpInfo.classList.add('hidden');
-                nonpnbpInfo.classList.remove('hidden');
+            // Rest of the form handlers...
+            const submissionForm = document.getElementById('submissionForm');
+            if (submissionForm) {
+                submissionForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    await submitForm();
+                });
             }
 
-            // Update document uploads based on category
-            updateDocumentUploadsByCategory(category);
+            const profileForm = document.getElementById('profileForm');
+            if (profileForm) {
+                profileForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    await updateProfile();
+                });
+            }
 
-            // Update fee display for selected guideline if any
-            updateFeeDisplayForCategory(category);
-        }
+            const paymentForm = document.getElementById('paymentForm');
+            if (paymentForm) {
+                paymentForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    await uploadPayment();
+                });
+            }
 
-        function updateDocumentUploadsByCategory(category) {
-            const uploadsContainer = document.getElementById('document-uploads');
-            uploadsContainer.innerHTML = '';
-
-            if (category === 'pnbp') {
-                // PNBP: Only 1 document required
-                uploadsContainer.innerHTML = `
-                    <div class="mb-4">
-                        <label for="document_0" class="block text-gray-700 font-semibold mb-2">
-                            <span class="text-red-500">*</span> Surat Pengantar dari Instansi/Organisasi
-                        </label>
-                        <div class="file-drop-area">
-                            <input type="file" id="document_0" name="documents[0]" 
-                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-1">Format: PDF, DOC, DOCX, JPG, PNG (Max: 5MB)</p>
-                    </div>
-                `;
-            } else {
-                // Non-PNBP: 4 documents (3 required, 1 optional)
-                const documents = [{
-                        name: 'Surat Pengantar dari Universitas/Institusi Penelitian',
-                        required: true
-                    },
-                    {
-                        name: 'Dokumen Proposal/Karya Ilmiah',
-                        required: true
-                    },
-                    {
-                        name: 'Dokumen Pendukung Penelitian',
-                        required: true
-                    },
-                    {
-                        name: 'Dokumen Pendukung Tambahan',
-                        required: false
-                    }
-                ];
-
-                documents.forEach((doc, index) => {
-                    uploadsContainer.innerHTML += `
-                        <div class="mb-4">
-                            <label for="document_${index}" class="block text-gray-700 font-semibold mb-2">
-                                ${doc.required ? '<span class="text-red-500">*</span>' : '<span class="text-gray-400">(Opsional)</span>'} 
-                                ${doc.name}
-                            </label>
-                            <div class="file-drop-area">
-                                <input type="file" id="document_${index}" name="documents[${index}]" 
-                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                                    ${doc.required ? 'required' : ''}>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">Format: PDF, DOC, DOCX, JPG, PNG (Max: 5MB)</p>
-                        </div>
-                    `;
+            const statusFilter = document.getElementById('statusFilter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', function() {
+                    loadSubmissions();
                 });
             }
         }
 
-        function updateFeeInformation(guideline, category) {
-            // Remove existing fee info
-            const existingFeeInfo = document.getElementById('fee-info');
-            if (existingFeeInfo) {
-                existingFeeInfo.remove();
-            }
-
-            const jenisDataSelect = document.getElementById('jenis_data');
-            const feeInfo = document.createElement('div');
-            feeInfo.id = 'fee-info';
-            feeInfo.className = 'mt-2 p-3 rounded-lg';
-
-            if (category === 'pnbp') {
-                // PNBP: Ada biaya dari guideline
-                feeInfo.className += ' bg-yellow-50 border border-yellow-200';
-                feeInfo.innerHTML = `
-                    <p class="text-sm text-yellow-800">
-                        <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
-                        <strong>Biaya PNBP:</strong> Rp ${new Intl.NumberFormat('id-ID').format(guideline.fee)}
-                    </p>
-                    <p class="text-xs text-yellow-600 mt-1">Digunakan untuk keperluan umum atau komersial</p>
-                `;
-            } else {
-                // Non-PNBP: Gratis untuk penelitian
-                feeInfo.className += ' bg-green-50 border border-green-200';
-                feeInfo.innerHTML = `
-                    <p class="text-sm text-green-800">
-                        <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                        </svg>
-                        <strong>Non-PNBP:</strong> Gratis untuk penelitian/akademik
-                    </p>
-                    <p class="text-xs text-green-600 mt-1">Khusus untuk keperluan penelitian dan akademik</p>
-                `;
-            }
-
-            jenisDataSelect.parentNode.appendChild(feeInfo);
-        }
-
-        function updateFeeDisplayForCategory(category) {
-            // Update fee info jika ada guideline yang sudah dipilih
-            const jenisDataSelect = document.getElementById('jenis_data');
-            const selectedId = jenisDataSelect.value;
-
-            if (selectedId && currentGuidelines.length > 0) {
-                const guideline = currentGuidelines.find(g => g.id == selectedId);
-                if (guideline) {
-                    updateFeeInformation(guideline, category);
-                }
-            }
-        }
-
-        // Toggle Accordion
-        function toggleAccordion(button) {
-            const content = button.nextElementSibling;
-            const svg = button.querySelector('svg');
-            content.classList.toggle('hidden');
-            svg.classList.toggle('rotate-180');
-        }
-
-        async function submitApplication(form) {
-            const submitBtn = document.getElementById('submit-btn');
-            const submitText = document.getElementById('submit-text');
-            const submitSpinner = document.getElementById('submit-spinner');
+        // REST OF THE JAVASCRIPT FUNCTIONS (same as before)
+        async function submitForm() {
+            const submitBtn = document.getElementById('submitBtn');
+            const submitBtnText = document.getElementById('submitBtnText');
+            const submitBtnLoader = document.getElementById('submitBtnLoader');
 
             // Show loading state
             submitBtn.disabled = true;
-            submitText.textContent = 'Mengirim...';
-            submitSpinner.classList.remove('hidden');
-
-            const formData = new FormData(form);
+            submitBtnText.textContent = 'Mengirim...';
+            submitBtnLoader.classList.remove('hidden');
 
             try {
-                const response = await fetch(form.action, {
+                const formData = new FormData(document.getElementById('submissionForm'));
+
+                const response = await fetch('/user/submissions', {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -1430,49 +1005,31 @@
 
                 const result = await response.json();
 
-                if (response.ok) {
-                    alert(
-                        `Pengajuan berhasil dikirim!\nNomor: ${result.application_number || 'N/A'}\nDokumen: ${result.documents_count || 0} file`);
-                    form.reset();
-                    document.getElementById('document-uploads').innerHTML = '';
-
-                    // Remove fee info
-                    const feeInfo = document.getElementById('fee-info');
-                    if (feeInfo) feeInfo.remove();
-
-                    // Remove warnings
-                    const warning = document.getElementById('date-range-warning');
-                    if (warning) warning.remove();
-
-                    // Reload page to show updated data
-                    location.reload();
+                if (result.success) {
+                    alert('Pengajuan berhasil dikirim! Silakan tunggu verifikasi dari admin.');
+                    document.getElementById('submissionForm').reset();
+                    document.getElementById('selectedGuidelineInfo').classList.add('hidden');
+                    document.getElementById('documentsSection').classList.add('hidden');
+                    showSection('history');
                 } else {
-                    console.error('Server error:', result);
-
-                    // Enhanced error handling
-                    if (result.errors && typeof result.errors === 'object') {
-                        const errorMessages = Object.values(result.errors).flat().join('\n');
-                        alert('Validasi error:\n' + errorMessages);
-                    } else {
-                        alert('Terjadi kesalahan: ' + (result.message || result.error || 'Unknown error'));
-                    }
+                    alert('Gagal mengirim pengajuan: ' + (result.message || 'Terjadi kesalahan'));
                 }
             } catch (error) {
-                console.error('Error submitting application:', error);
-                alert('Terjadi kesalahan saat mengirim pengajuan: ' + error.message);
+                console.error('Error submitting form:', error);
+                alert('Terjadi kesalahan saat mengirim pengajuan');
             } finally {
-                // Reset loading state
+                // Reset button state
                 submitBtn.disabled = false;
-                submitText.textContent = 'Ajukan Surat';
-                submitSpinner.classList.add('hidden');
+                submitBtnText.textContent = 'Ajukan Permohonan';
+                submitBtnLoader.classList.add('hidden');
             }
         }
 
-        async function submitPayment(form) {
-            const formData = new FormData(form);
-
+        async function updateProfile() {
             try {
-                const response = await fetch(form.action, {
+                const formData = new FormData(document.getElementById('profileForm'));
+
+                const response = await fetch('/user/profile', {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -1483,38 +1040,10 @@
 
                 const result = await response.json();
 
-                if (response.ok) {
-                    alert('Bukti pembayaran berhasil diupload!');
-                    closePaymentModal();
-                    location.reload();
-                } else {
-                    alert('Terjadi kesalahan: ' + (result.message || result.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error uploading payment proof:', error);
-                alert('Terjadi kesalahan saat mengupload bukti pembayaran');
-            }
-        }
-
-        async function updateProfile(form) {
-            const formData = new FormData(form);
-
-            try {
-                const response = await fetch('{{ route('user.profile.update') }}', {
-                    method: 'PUT',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                            'content')
-                    }
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
+                if (result.success) {
                     alert('Profil berhasil diperbarui!');
                 } else {
-                    alert('Terjadi kesalahan: ' + (result.message || result.error || 'Unknown error'));
+                    alert('Gagal memperbarui profil: ' + (result.message || 'Terjadi kesalahan'));
                 }
             } catch (error) {
                 console.error('Error updating profile:', error);
@@ -1522,63 +1051,159 @@
             }
         }
 
-        function showErrorMessage(message) {
-            const errorDiv = document.getElementById('form-error');
-            const errorText = document.getElementById('error-text');
-            
-            errorText.textContent = message;
-            errorDiv.classList.remove('hidden');
-            
-            setTimeout(() => {
-                errorDiv.classList.add('hidden');
-            }, 5000);
-        }
+        async function loadSubmissions() {
+            try {
+                const statusFilter = document.getElementById('statusFilter');
+                const statusValue = statusFilter ? statusFilter.value : '';
+                const url = statusValue ? `/user/submissions?status=${statusValue}` : '/user/submissions';
 
-        function retryLoadForm() {
-            document.getElementById('form-error').classList.add('hidden');
-            loadGuidelinesForForm();
+                const response = await fetch(url, {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content')
+                    }
+                });
+
+                const data = await response.json();
+                const tbody = document.getElementById('submissionsTableBody');
+
+                if (data.success && data.data.length > 0) {
+                    tbody.innerHTML = data.data.map(submission => {
+                        const statusConfig = {
+                            'pending': 'bg-yellow-100 text-yellow-800',
+                            'verified': 'bg-blue-100 text-blue-800',
+                            'payment_pending': 'bg-orange-100 text-orange-800',
+                            'paid': 'bg-purple-100 text-purple-800',
+                            'processing': 'bg-indigo-100 text-indigo-800',
+                            'completed': 'bg-green-100 text-green-800',
+                            'rejected': 'bg-red-100 text-red-800'
+                        };
+
+                        return `
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ${submission.submission_number || 'SUB-' + String(submission.id).padStart(4, '0')}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    ${submission.guideline ? submission.guideline.title : 'N/A'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge ${submission.type === 'pnbp' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
+                                        ${submission.type === 'pnbp' ? 'PNBP' : 'Non-PNBP'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge ${statusConfig[submission.status] || 'bg-gray-100 text-gray-800'}">
+                                        ${getStatusText(submission.status)}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    ${new Date(submission.created_at).toLocaleDateString('id-ID')}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex space-x-2">
+                                        <button onclick="showDetail(${submission.id})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                            Detail
+                                        </button>
+                                        ${submission.status === 'payment_pending' && submission.guideline ? `
+                                                <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
+                                                    Bayar
+                                                </button>
+                                            ` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                <div class="flex flex-col items-center">
+                                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Belum ada pengajuan</h3>
+                                    <p class="text-gray-500 mb-4">Mulai dengan mengajukan surat atau data pertama Anda.</p>
+                                    <button onclick="showSection('submit')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium transition-colors">
+                                        Ajukan Sekarang
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading submissions:', error);
+                const tbody = document.getElementById('submissionsTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-red-500">
+                                Error loading data: ${error.message}
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
         }
 
         // Modal functions
-        function showPaymentModal(applicationId) {
-            document.getElementById('payment_application_id').value = applicationId;
-            document.getElementById('paymentForm').action = `/user/applications/${applicationId}/upload-payment`;
-            document.getElementById('paymentModal').style.display = 'flex';
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
         }
 
-        function closePaymentModal() {
-            document.getElementById('paymentModal').style.display = 'none';
-            document.getElementById('paymentForm').reset();
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
         }
 
-        function showEditModal(applicationData) {
-            document.getElementById('edit_application_id').value = applicationData.id;
-            document.getElementById('edit_no_surat').value = applicationData.application_number;
-            document.getElementById('editForm').action = `/user/applications/${applicationData.id}`;
+        // Helper functions
+        function getStatusText(status) {
+            const statusTexts = {
+                'pending': 'Menunggu Review',
+                'verified': 'Terverifikasi',
+                'payment_pending': 'Menunggu Pembayaran',
+                'paid': 'Sudah Bayar',
+                'processing': 'Sedang Diproses',
+                'completed': 'Selesai',
+                'rejected': 'Ditolak'
+            };
+            return statusTexts[status] || status;
+        }
 
-            // Populate edit form with existing data
-            if (applicationData.purpose) {
-                document.getElementById('edit_keperluan').value = applicationData.purpose;
+        function selectGuideline(guidelineId) {
+            showSection('submit');
+            const select = document.getElementById('guideline_id');
+            if (select) {
+                select.value = guidelineId;
+                select.dispatchEvent(new Event('change'));
             }
-
-            document.getElementById('editModal').style.display = 'flex';
         }
 
-        function closeEditModal() {
-            document.getElementById('editModal').style.display = 'none';
-            document.getElementById('editForm').reset();
+        // Placeholder functions for other features
+        async function showDetail(submissionId) {
+            // Implementation for showing submission detail
+            console.log('Show detail for submission:', submissionId);
         }
 
-        // Close modals when clicking outside
-        window.addEventListener('click', function(event) {
-            const paymentModal = document.getElementById('paymentModal');
-            const editModal = document.getElementById('editModal');
+        function showPaymentModal(submissionId, amount) {
+            currentSubmissionId = submissionId;
+            currentPaymentAmount = amount;
+            showModal('paymentModal');
+        }
 
-            if (event.target === paymentModal) {
-                closePaymentModal();
-            }
-            if (event.target === editModal) {
-                closeEditModal();
+        async function uploadPayment() {
+            // Implementation for payment upload
+            console.log('Upload payment for submission:', currentSubmissionId);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+                modals.forEach(modal => {
+                    modal.classList.add('hidden');
+                });
             }
         });
     </script>

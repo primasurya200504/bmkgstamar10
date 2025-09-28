@@ -12,25 +12,51 @@ class Guideline extends Model
     protected $fillable = [
         'title',
         'description',
-        'type',  // ADDED untuk support seeder
+        'type',
         'fee',
         'required_documents',
         'is_active'
     ];
 
     protected $casts = [
-        'required_documents' => 'array',
+        'fee' => 'decimal:2',
         'is_active' => 'boolean',
-        'fee' => 'integer'
+        'required_documents' => 'array' // CASTING KE ARRAY
     ];
 
-    public function applications()
+    // Accessor untuk required_documents yang aman
+    public function getRequiredDocumentsAttribute($value)
     {
-        return $this->hasMany(Application::class);
+        if (is_null($value)) {
+            return [];
+        }
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 
-    public function getFormattedFeeAttribute()
+    // Mutator untuk required_documents
+    public function setRequiredDocumentsAttribute($value)
     {
-        return 'Rp ' . number_format($this->fee, 0, ',', '.');
+        if (is_array($value)) {
+            $this->attributes['required_documents'] = json_encode($value);
+        } elseif (is_string($value)) {
+            $this->attributes['required_documents'] = $value;
+        } else {
+            $this->attributes['required_documents'] = json_encode([]);
+        }
+    }
+
+    public function submissions()
+    {
+        return $this->hasMany(Submission::class);
     }
 }
