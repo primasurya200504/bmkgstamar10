@@ -458,8 +458,9 @@
                     <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                         <h3 class="text-lg font-semibold text-gray-900">Manajemen Panduan</h3>
                         <div class="flex space-x-2">
-                            <button onclick="showGuidelineModal()"
-                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium">
+                            <button data-bs-toggle="modal" data-bs-target="#guidelineModal"
+                                onclick="showGuidelineModal()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
                                 Tambah Panduan
                             </button>
                             <button onclick="loadGuidelines()"
@@ -1540,15 +1541,15 @@
                                     </span>
                                 </div>
                                 ${history.metadata ? `
-                                                <div class="mt-3 p-3 bg-gray-50 rounded-lg">
-                                                    <h5 class="text-sm font-medium text-gray-700 mb-2">Detail:</h5>
-                                                    <div class="text-xs text-gray-600 space-y-1">
-                                                        ${Object.entries(history.metadata).map(([key, value]) => 
-                                                            `<p><strong>${formatMetadataKey(key)}:</strong> ${formatMetadataValue(value)}</p>`
-                                                        ).join('')}
+                                                    <div class="mt-3 p-3 bg-gray-50 rounded-lg">
+                                                        <h5 class="text-sm font-medium text-gray-700 mb-2">Detail:</h5>
+                                                        <div class="text-xs text-gray-600 space-y-1">
+                                                            ${Object.entries(history.metadata).map(([key, value]) => 
+                                                                `<p><strong>${formatMetadataKey(key)}:</strong> ${formatMetadataValue(value)}</p>`
+                                                            ).join('')}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ` : ''}
+                                                ` : ''}
                             </div>
                         </div>
                     `;
