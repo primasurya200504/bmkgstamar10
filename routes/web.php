@@ -44,6 +44,14 @@ Route::middleware('auth')->group(function () {
         Route::put('/guidelines/{id}', [AdminController::class, 'updateGuideline'])->name('guidelines.update');
         Route::delete('/guidelines/{id}', [AdminController::class, 'destroyGuideline'])->name('guidelines.destroy');
 
+        // ===== AJAX ENDPOINTS BARU YANG DIPERLUKAN =====
+        // Route untuk AJAX calls dari dashboard admin
+        Route::get('/ajax/requests', [AdminController::class, 'getRequestsData'])->name('ajax.requests');
+        Route::get('/ajax/payments', [AdminController::class, 'getPaymentsData'])->name('ajax.payments');
+        Route::get('/ajax/guidelines', [AdminController::class, 'getGuidelinesData'])->name('ajax.guidelines');
+        Route::get('/ajax/users', [AdminController::class, 'getUsersData'])->name('ajax.users');
+        Route::get('/ajax/statistics', [AdminController::class, 'getStatistics'])->name('ajax.statistics');
+
         // Manajemen Arsip
         Route::get('/archives', [AdminController::class, 'archives'])->name('archives');
 
@@ -62,6 +70,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/guidelines', [UserController::class, 'guidelines'])->name('guidelines');
         Route::post('/submit-application', [UserController::class, 'submitApplication'])->name('submit-application');
         Route::post('/applications', [UserController::class, 'submitApplication'])->name('applications.store');
+
+        // ===== AJAX ENDPOINTS BARU UNTUK USER =====
+        // Route khusus untuk dropdown "Jenis Data yang Diajukan" 
+        Route::get('/ajax/data-types', [UserController::class, 'guidelines'])->name('ajax.data-types');
+        Route::get('/ajax/guidelines/{type}', [UserController::class, 'getGuidelinesByType'])->name('ajax.guidelines-by-type');
+        Route::get('/ajax/application-status', [UserController::class, 'getApplicationStatus'])->name('ajax.application-status');
 
         // Pembayaran
         Route::post('/applications/{id}/payment', [UserController::class, 'uploadPaymentProof'])->name('applications.payment');

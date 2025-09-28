@@ -692,10 +692,10 @@ class AdminController extends Controller
             }
 
             $applications = $query->orderBy('created_at', 'desc')
-                ->paginate(20);
+                ->get();
 
             // Transform data
-            $applications->getCollection()->transform(function ($app) {
+            $applications->transform(function ($app) {
                 $app->type_label = $app->type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)';
                 $app->completed_at_formatted = $app->updated_at->format('d/m/Y H:i');
                 $app->process_duration = $app->created_at->diffInDays($app->updated_at);
@@ -971,6 +971,120 @@ class AdminController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Failed to delete guideline'
+            ], 500);
+        }
+    }
+
+    /**
+     * AJAX Data Methods for Admin Dashboard
+     */
+    public function getRequestsData()
+    {
+        try {
+            $applications = Application::with(['user', 'guideline', 'payment'])
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get();
+
+            // Transform data untuk konsistensi
+            $applications->transform(function ($app) {
+                $app->type_label = $app->type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)';
+                $app->status_label = $this->getStatusLabel($app->status);
+                $app->created_at_formatted = $app->created_at->format('d/m/Y H:i');
+                $app->documents_count = is_array($app->documents) ? count($app->documents) : 0;
+                $app->user_name = $app->user ? $app->user->name : 'N/A';
+                $app->guideline_title = $app->guideline ? $app->guideline->title : 'N/A';
+                return $app;
+            });
+
+            return response()->json($applications);
+        } catch (\Exception $e) {
+            Log::error('Requests data loading error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to load requests data'
+            ], 500);
+        }
+    }
+
+    public function getPaymentsData()
+    {
+        try {
+            $payments = Payment::with(['application.user', 'application.guideline'])
+                ->whereNotNull('payment_proof')
+                ->orderBy('created_at', 'desc')
+                ->take(10)
+                ->get();
+
+            // Transform data
+            $payments->transform(function ($payment) {
+                $payment->status_label = $this->getPaymentStatusLabel($payment->status);
+                $payment->amount_formatted = 'Rp ' . number_format($payment->amount, 0, ',', '.');
+                $payment->created_at_formatted = $payment->created_at->format('d/m/Y H:i');
+                return $payment;
+            });
+
+            return response()->json($payments);
+        } catch (\Exception $e) {
+            Log::error('Payments data loading error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to load payments data'
+            ], 500);
+        }
+    }
+
+    public function getGuidelinesData()
+    {
+        try {
+            $guidelines = Guideline::orderBy('created_at', 'desc')->get();
+            return response()->json($guidelines);
+        } catch (\Exception $e) {
+            Log::error('Guidelines data loading error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to load guidelines data'
+            ], 500);
+        }
+    }
+
+    public function getUsersData()
+    {
+        try {
+            $users = User::where('role', 'user')
+                ->select('id', 'name', 'email', 'phone', 'created_at')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'data' => $users
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Users data loading error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to load users data'
+            ], 500);
+        }
+    }
+
+    public function getStatistics()
+    {
+        try {
+            $stats = [
+                'pending_requests' => Application::where('status', 'pending')->count(),
+                'pending_payments' => Application::where('status', 'payment_pending')->count(),
+                'processing' => Application::where('status', 'processing')->count(),
+                'completed' => Application::where('status', 'completed')->count(),
+                'total_users' => User::where('role', 'user')->count()
+            ];
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Statistics loading error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to load statistics'
             ], 500);
         }
     }

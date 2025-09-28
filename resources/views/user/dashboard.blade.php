@@ -92,7 +92,6 @@
             0% {
                 transform: rotate(0deg);
             }
-
             100% {
                 transform: rotate(360deg);
             }
@@ -135,13 +134,11 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        /* ADDED: Custom date input untuk free selection */
         .free-date-input {
             position: relative;
         }
 
         .free-date-input input[type="date"] {
-            /* Remove browser restrictions for date input */
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -168,6 +165,24 @@
         .future-projection {
             background-color: #fefce8;
             color: #ca8a04;
+        }
+
+        .error-message {
+            background-color: #fef2f2;
+            border: 1px solid #f87171;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .success-message {
+            background-color: #f0fdf4;
+            border: 1px solid #22c55e;
+            color: #15803d;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -281,7 +296,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-yellow-800">Menunggu</p>
-                                <p class="text-2xl font-bold text-yellow-900">{{ $stats['pending'] }}</p>
+                                <p class="text-2xl font-bold text-yellow-900">{{ $stats['pending'] ?? 0 }}</p>
                             </div>
                         </div>
                     </div>
@@ -297,7 +312,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-blue-800">Diproses</p>
-                                <p class="text-2xl font-bold text-blue-900">{{ $stats['in_process'] }}</p>
+                                <p class="text-2xl font-bold text-blue-900">{{ $stats['in_process'] ?? 0 }}</p>
                             </div>
                         </div>
                     </div>
@@ -313,7 +328,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-green-800">Selesai</p>
-                                <p class="text-2xl font-bold text-green-900">{{ $stats['completed'] }}</p>
+                                <p class="text-2xl font-bold text-green-900">{{ $stats['completed'] ?? 0 }}</p>
                             </div>
                         </div>
                     </div>
@@ -329,7 +344,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-red-800">Ditolak</p>
-                                <p class="text-2xl font-bold text-red-900">{{ $stats['rejected'] }}</p>
+                                <p class="text-2xl font-bold text-red-900">{{ $stats['rejected'] ?? 0 }}</p>
                             </div>
                         </div>
                     </div>
@@ -349,15 +364,15 @@
                             </tr>
                         </thead>
                         <tbody class="text-gray-600 text-sm font-normal">
-                            @forelse ($applications as $application)
+                            @forelse ($applications ?? [] as $application)
                                 <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="py-3 px-4 font-medium">{{ $application->application_number }}</td>
-                                    <td class="py-3 px-4">{{ $application->created_at->format('d/m/Y H:i') }}</td>
-                                    <td class="py-3 px-4">{{ $application->guideline->title }}</td>
+                                    <td class="py-3 px-4 font-medium">{{ $application->application_number ?? 'N/A' }}</td>
+                                    <td class="py-3 px-4">{{ isset($application->created_at) ? $application->created_at->format('d/m/Y H:i') : 'N/A' }}</td>
+                                    <td class="py-3 px-4">{{ $application->guideline->title ?? 'N/A' }}</td>
                                     <td class="py-3 px-4">
                                         <span
-                                            class="px-2 py-1 text-xs font-semibold rounded-full {{ $application->type === 'pnbp' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
-                                            {{ $application->type === 'pnbp' ? 'PNBP' : 'Non-PNBP' }}
+                                            class="px-2 py-1 text-xs font-semibold rounded-full {{ ($application->type ?? '') === 'pnbp' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
+                                            {{ ($application->type ?? '') === 'pnbp' ? 'PNBP' : 'Non-PNBP' }}
                                         </span>
                                     </td>
                                     <td class="py-3 px-4">
@@ -392,38 +407,16 @@
                                                     'text' => 'Ditolak',
                                                 ],
                                             ];
-                                            $config = $statusConfig[$application->status] ?? [
+                                            $config = $statusConfig[$application->status ?? 'pending'] ?? [
                                                 'class' => 'bg-gray-100 text-gray-700',
-                                                'text' => ucfirst($application->status),
+                                                'text' => ucfirst($application->status ?? 'pending'),
                                             ];
                                         @endphp
                                         <span
                                             class="{{ $config['class'] }} font-medium py-1 px-3 rounded-full">{{ $config['text'] }}</span>
                                     </td>
                                     <td class="py-3 px-4 space-x-2">
-                                        @if ($application->status === 'completed' && $application->generatedDocuments->count() > 0)
-                                            @foreach ($application->generatedDocuments as $document)
-                                                <a href="{{ route('user.download-document', $document->id) }}"
-                                                    class="inline-flex items-center px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition-colors">
-                                                    📥 Unduh Data
-                                                </a>
-                                            @endforeach
-                                        @elseif (
-                                            $application->status === 'payment_pending' &&
-                                                $application->type === 'pnbp' &&
-                                                (!$application->payment || !$application->payment->payment_proof))
-                                            <button onclick="showPaymentModal({{ $application->id }})"
-                                                class="inline-flex items-center px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-lg transition-colors">
-                                                💳 Upload Bayar
-                                            </button>
-                                        @elseif ($application->status === 'rejected')
-                                            <button onclick="showEditModal({{ json_encode($application) }})"
-                                                class="inline-flex items-center px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded-lg transition-colors">
-                                                ✏️ Edit
-                                            </button>
-                                        @else
-                                            <span class="text-gray-400 text-xs">-</span>
-                                        @endif
+                                        <span class="text-gray-400 text-xs">-</span>
                                     </td>
                                 </tr>
                             @empty
@@ -453,7 +446,7 @@
             <div class="bg-white p-8 rounded-lg shadow-md">
                 <h3 class="text-2xl font-bold mb-4">Formulir Pengajuan Surat/Data</h3>
 
-                <!-- UPDATED: Enhanced Info Periode Data -->
+                <!-- Enhanced Info Periode Data -->
                 <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 class="font-medium text-blue-800 mb-2">📅 Info Pemilihan Tanggal:</h4>
                     <ul class="text-sm text-blue-700 space-y-1">
@@ -471,7 +464,7 @@
 
                 <!-- Template Downloads -->
                 <div class="mb-6">
-                    <h4 class="font-semibold mb-2">Tabel Unduhan Surat Pengantar</h4>
+                    <h4 class="font-semibold mb-2">Template Surat Pengantar</h4>
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-white border border-gray-200 rounded-lg">
                             <thead>
@@ -565,17 +558,33 @@
                     <input type="hidden" name="type" id="kategori_input" value="pnbp">
                     <input type="hidden" name="guideline_id" id="guideline_id_input">
 
+                    <!-- Loading State -->
+                    <div id="form-loading" class="text-center py-8 hidden">
+                        <div class="spinner mx-auto mb-4"></div>
+                        <p class="text-gray-600">Memuat formulir...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="form-error" class="hidden">
+                        <div class="error-message">
+                            <p><strong>Error:</strong> <span id="error-text"></span></p>
+                            <button type="button" onclick="retryLoadForm()" class="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                                Coba Lagi
+                            </button>
+                        </div>
+                    </div>
+
                     <div>
                         <label for="jenis_data" class="block text-gray-700 font-semibold mb-2">Jenis Data yang
-                            Diajukan</label>
+                            Diajukan <span class="text-red-500">*</span></label>
                         <select id="jenis_data" name="jenis_data"
                             class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             required>
-                            <option value="">Pilih Jenis Data</option>
+                            <option value="">Memuat data...</option>
                         </select>
                     </div>
 
-                    <!-- UPDATED: FREE DATE SELECTION -->
+                    <!-- FREE DATE SELECTION -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="free-date-input">
                             <label for="tanggal_mulai" class="block text-gray-700 font-semibold mb-2">
@@ -603,7 +612,7 @@
                         </div>
                     </div>
 
-                    <!-- UPDATED: Enhanced Date Presets -->
+                    <!-- Enhanced Date Presets -->
                     <div id="date-presets" class="flex flex-wrap gap-2 mb-4">
                         <p class="w-full text-sm text-gray-600 mb-2">Preset tanggal populer:</p>
                         <button type="button" onclick="setDatePreset('yesterday')"
@@ -642,7 +651,7 @@
 
                     <div>
                         <label for="keperluan" class="block text-gray-700 font-semibold mb-2">Keperluan Penggunaan
-                            Data</label>
+                            Data <span class="text-red-500">*</span></label>
                         <textarea id="keperluan" name="keperluan" rows="4"
                             placeholder="Jelaskan secara detail keperluan dan tujuan penggunaan data meteorologi yang diminta..."
                             class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -672,6 +681,11 @@
                 <h3 class="text-2xl font-bold mb-4">Panduan Pengajuan Surat/Data</h3>
                 <p class="text-gray-600 mb-6">Klik pada jenis data di bawah ini untuk melihat detail, contoh, dan
                     syarat pengajuannya.</p>
+
+                <div id="panduan-loading" class="text-center py-8">
+                    <div class="spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600">Memuat panduan...</p>
+                </div>
 
                 <div id="accordion-container" class="space-y-4">
                     <!-- Guidelines will be loaded here -->
@@ -772,6 +786,7 @@
 
     <script>
         let currentGuidelines = [];
+        let isLoading = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             const navLinks = document.querySelectorAll('a[id^="nav-"]');
@@ -817,13 +832,12 @@
             initializeFormHandlers();
             loadGuidelinesForForm();
 
-            // UPDATED: Remove date restrictions - let users pick ANY date
+            // Remove date restrictions - let users pick ANY date
             const tanggalMulai = document.getElementById('tanggal_mulai');
             const tanggalSelesai = document.getElementById('tanggal_selesai');
 
-            // Remove min/max restrictions to allow free selection
+            // Allow any date from 1900 to 2100
             if (tanggalMulai) {
-                // Allow any date from 1900 to 2100
                 tanggalMulai.removeAttribute('min');
                 tanggalMulai.removeAttribute('max');
             }
@@ -849,7 +863,174 @@
             }
         });
 
-        // UPDATED: Enhanced date validation (warning only, not blocking)
+        // FIXED: Load Guidelines for Form (Dropdown)
+        async function loadGuidelinesForForm() {
+            const jenisDataSelect = document.getElementById('jenis_data');
+            
+            if (isLoading) return;
+            isLoading = true;
+
+            try {
+                jenisDataSelect.innerHTML = '<option value="">Memuat data...</option>';
+                
+                // FIXED: Use the correct route that exists
+                const response = await fetch("{{ route('user.ajax.data-types') }}", {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                }
+
+                const guidelines = await response.json();
+                currentGuidelines = guidelines;
+
+                jenisDataSelect.innerHTML = '<option value="">Pilih Jenis Data</option>';
+                
+                if (guidelines && Array.isArray(guidelines) && guidelines.length > 0) {
+                    guidelines.forEach(guideline => {
+                        jenisDataSelect.innerHTML += `<option value="${guideline.id}" data-fee="${guideline.fee || 0}">${guideline.title}</option>`;
+                    });
+                } else {
+                    jenisDataSelect.innerHTML = '<option value="">Tidak ada data tersedia</option>';
+                }
+
+                // Event listener untuk update fee berdasarkan selection
+                jenisDataSelect.addEventListener('change', (e) => {
+                    const selectedId = e.target.value;
+                    if (selectedId) {
+                        document.getElementById('guideline_id_input').value = selectedId;
+                        const guideline = guidelines.find(g => g.id == selectedId);
+                        const category = document.getElementById('kategori_input').value;
+                        updateFeeInformation(guideline, category);
+                    }
+                });
+
+                // Hide loading states
+                document.getElementById('form-loading').classList.add('hidden');
+                document.getElementById('form-error').classList.add('hidden');
+
+            } catch (error) {
+                console.error('Error loading guidelines:', error);
+                jenisDataSelect.innerHTML = '<option value="">Error loading data - silakan refresh halaman</option>';
+                
+                showErrorMessage(`Gagal memuat data jenis: ${error.message}`);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // FIXED: Load Guidelines for Display  
+        async function loadGuidelines() {
+            const container = document.getElementById('accordion-container');
+            const loadingDiv = document.getElementById('panduan-loading');
+            
+            if (isLoading) return;
+            
+            loadingDiv.classList.remove('hidden');
+            container.innerHTML = '';
+
+            try {
+                // FIXED: Use the correct route 
+                const response = await fetch("{{ route('user.ajax.data-types') }}", {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const guidelines = await response.json();
+                
+                loadingDiv.classList.add('hidden');
+
+                if (guidelines && Array.isArray(guidelines) && guidelines.length > 0) {
+                    guidelines.forEach(guideline => {
+                        container.innerHTML += createGuidelineAccordion(guideline);
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-8">Tidak ada panduan tersedia</p>';
+                }
+
+            } catch (error) {
+                console.error('Error loading guidelines:', error);
+                loadingDiv.classList.add('hidden');
+                container.innerHTML = `
+                    <div class="text-center p-6 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-red-700 mb-4">Gagal memuat panduan: ${error.message}</p>
+                        <button onclick="loadGuidelines()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                            Coba Lagi
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Create Guideline Accordion HTML
+        function createGuidelineAccordion(guideline) {
+            return `
+                <div class="border border-gray-200 rounded-lg overflow-hidden mb-4">
+                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-200"
+                            onclick="toggleAccordion(this)">
+                        <span class="text-lg font-semibold text-gray-800">${guideline.title}</span>
+                        <svg class="w-6 h-6 transform transition-transform duration-200" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div class="accordion-content p-4 bg-white text-gray-700">
+                        <p class="mb-4">${guideline.description || 'Panduan lengkap untuk pengajuan data meteorologi maritim.'}</p>
+                        
+                        <div class="mb-4">
+                            <h4 class="font-bold mb-2">Informasi Biaya:</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div class="bg-yellow-50 p-3 rounded border border-yellow-200">
+                                    <p class="font-semibold text-yellow-800">PNBP (Komersial):</p>
+                                    <p class="text-yellow-700">Rp ${new Intl.NumberFormat('id-ID').format(guideline.fee || 0)}</p>
+                                </div>
+                                <div class="bg-green-50 p-3 rounded border border-green-200">
+                                    <p class="font-semibold text-green-800">Non-PNBP (Penelitian):</p>
+                                    <p class="text-green-700">Gratis</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h4 class="font-bold mb-2">Persyaratan Dokumen:</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                                    <p class="font-semibold text-blue-800">PNBP (1 Dokumen):</p>
+                                    <ul class="text-blue-700 list-disc list-inside mt-1">
+                                        <li>Surat Pengantar Instansi/Organisasi</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-purple-50 p-3 rounded border border-purple-200">
+                                    <p class="font-semibold text-purple-800">Non-PNBP (4 Dokumen):</p>
+                                    <ul class="text-purple-700 list-disc list-inside mt-1 text-xs">
+                                        <li>Surat Pengantar Universitas</li>
+                                        <li>Proposal/Karya Ilmiah</li>
+                                        <li>Dokumen Pendukung</li>
+                                        <li>Dokumen Tambahan (Opsional)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Enhanced date validation (warning only, not blocking)
         function validateDateRange() {
             const tanggalMulai = document.getElementById('tanggal_mulai');
             const tanggalSelesai = document.getElementById('tanggal_selesai');
@@ -923,7 +1104,7 @@
             }
         }
 
-        // ADDED: Update date type badges
+        // Update date type badges
         function updateDateTypeBadge() {
             const tanggalMulai = document.getElementById('tanggal_mulai');
             const tanggalSelesai = document.getElementById('tanggal_selesai');
@@ -965,7 +1146,7 @@
             }
         }
 
-        // UPDATED: Enhanced preset functions with more options
+        // Enhanced preset functions with more options
         function setDatePreset(preset) {
             const tanggalMulai = document.getElementById('tanggal_mulai');
             const tanggalSelesai = document.getElementById('tanggal_selesai');
@@ -1163,44 +1344,6 @@
             }
         }
 
-        async function loadGuidelinesForForm() {
-            const jenisDataSelect = document.getElementById('jenis_data');
-
-            try {
-                const response = await fetch(`{{ route('user.guidelines') }}`, {
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                            'content')
-                    }
-                });
-                const guidelines = await response.json();
-                currentGuidelines = guidelines;
-
-                jenisDataSelect.innerHTML = '<option value="">Pilih Jenis Data</option>';
-                guidelines.forEach(guideline => {
-                    jenisDataSelect.innerHTML +=
-                        `<option value="${guideline.id}" data-fee="${guideline.fee}">${guideline.title}</option>`;
-                });
-
-                // Event listener untuk update fee berdasarkan kategori
-                jenisDataSelect.addEventListener('change', (e) => {
-                    const selectedId = e.target.value;
-                    if (selectedId) {
-                        document.getElementById('guideline_id_input').value = selectedId;
-                        const guideline = guidelines.find(g => g.id == selectedId);
-                        const category = document.getElementById('kategori_input').value;
-
-                        // Show fee information based on category
-                        updateFeeInformation(guideline, category);
-                    }
-                });
-
-            } catch (error) {
-                console.error('Error loading guidelines:', error);
-                jenisDataSelect.innerHTML = '<option value="">Error loading data</option>';
-            }
-        }
-
         function updateFeeInformation(guideline, category) {
             // Remove existing fee info
             const existingFeeInfo = document.getElementById('fee-info');
@@ -1255,87 +1398,7 @@
             }
         }
 
-        async function loadGuidelines() {
-            const container = document.getElementById('accordion-container');
-
-            try {
-                const response = await fetch('{{ route('user.guidelines') }}', {
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                            'content')
-                    }
-                });
-                const guidelines = await response.json();
-
-                container.innerHTML = '';
-                guidelines.forEach(guideline => {
-                    const requirementsList = guideline.required_documents ?
-                        guideline.required_documents.map(req => `<li class="text-sm">${req}</li>`).join('') :
-                        '';
-
-                    container.innerHTML += `
-                        <div class="border border-gray-200 rounded-lg overflow-hidden">
-                            <button class="accordion-header w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-200"
-                                    onclick="toggleAccordion(this)">
-                                <span class="text-lg font-semibold text-gray-800">${guideline.title}</span>
-                                <svg class="w-6 h-6 transform transition-transform duration-200" fill="none"
-                                    stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </button>
-                            <div class="accordion-content hidden p-4 bg-white text-gray-700">
-                                <p class="mb-4">${guideline.description}</p>
-                                <div class="mb-4">
-                                    <h4 class="font-bold mb-2">Biaya:</h4>
-                                    <div class="grid grid-cols-2 gap-4 text-sm">
-                                        <div class="bg-yellow-50 p-3 rounded border border-yellow-200">
-                                            <p class="font-semibold text-yellow-800">PNBP:</p>
-                                            <p class="text-yellow-700">Rp ${new Intl.NumberFormat('id-ID').format(guideline.fee)}</p>
-                                        </div>
-                                        <div class="bg-green-50 p-3 rounded border border-green-200">
-                                            <p class="font-semibold text-green-800">Non-PNBP:</p>
-                                            <p class="text-green-700">Gratis (Penelitian)</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="mb-4">
-                                    <h4 class="font-bold mb-2">Persyaratan Dokumen:</h4>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                        <div class="bg-blue-50 p-3 rounded border border-blue-200">
-                                            <p class="font-semibold text-blue-800">PNBP (1 Dokumen):</p>
-                                            <ul class="text-blue-700 list-disc list-inside mt-1">
-                                                <li>Surat Pengantar Instansi</li>
-                                            </ul>
-                                        </div>
-                                        <div class="bg-purple-50 p-3 rounded border border-purple-200">
-                                            <p class="font-semibold text-purple-800">Non-PNBP (4 Dokumen):</p>
-                                            <ul class="text-purple-700 list-disc list-inside mt-1 text-xs">
-                                                <li>Surat Pengantar Universitas</li>
-                                                <li>Proposal/Karya Ilmiah</li>
-                                                <li>Dokumen Pendukung</li>
-                                                <li>Dokumen Tambahan (Opsional)</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                                ${requirementsList ? `
-                                        <h4 class="font-bold mb-2">Dokumen Teknis yang Diperlukan:</h4>
-                                        <ul class="list-disc list-inside space-y-1 mb-4">
-                                            ${requirementsList}
-                                        </ul>
-                                        ` : ''}
-                            </div>
-                        </div>
-                    `;
-                });
-
-            } catch (error) {
-                console.error('Error loading guidelines:', error);
-                container.innerHTML = '<p class="text-center text-gray-500">Gagal memuat panduan</p>';
-            }
-        }
-
+        // Toggle Accordion
         function toggleAccordion(button) {
             const content = button.nextElementSibling;
             const svg = button.querySelector('svg');
@@ -1457,6 +1520,23 @@
                 console.error('Error updating profile:', error);
                 alert('Terjadi kesalahan saat memperbarui profil');
             }
+        }
+
+        function showErrorMessage(message) {
+            const errorDiv = document.getElementById('form-error');
+            const errorText = document.getElementById('error-text');
+            
+            errorText.textContent = message;
+            errorDiv.classList.remove('hidden');
+            
+            setTimeout(() => {
+                errorDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        function retryLoadForm() {
+            document.getElementById('form-error').classList.add('hidden');
+            loadGuidelinesForForm();
         }
 
         // Modal functions
