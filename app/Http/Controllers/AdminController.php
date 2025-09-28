@@ -23,7 +23,7 @@ class AdminController extends Controller
         try {
             // Test database connection
             DB::connection()->getPdo();
-
+            
             // Enhanced statistics
             $stats = [
                 'pending_requests' => Submission::where('status', 'pending')->count(),
@@ -60,9 +60,10 @@ class AdminController extends Controller
             ]);
 
             return view('admin.dashboard', compact('stats', 'recentSubmissions'));
+
         } catch (\Exception $e) {
             Log::error('Admin Dashboard Error: ' . $e->getMessage());
-
+            
             // Fallback data
             $stats = [
                 'pending_requests' => 0,
@@ -74,9 +75,9 @@ class AdminController extends Controller
                 'today_submissions' => 0,
                 'this_month_submissions' => 0
             ];
-
+            
             $recentSubmissions = collect();
-
+            
             return view('admin.dashboard', compact('stats', 'recentSubmissions'))
                 ->with('error', 'Error loading dashboard: ' . $e->getMessage());
         }
@@ -86,17 +87,18 @@ class AdminController extends Controller
     public function guidelines()
     {
         try {
-            $guidelines = Guideline::orderBy('created_at', 'desc')->get()->map(function ($guideline) {
+            $guidelines = Guideline::orderBy('created_at', 'desc')->get()->map(function($guideline) {
                 $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
                 return $guideline;
             });
-
+            
             Log::info('Guidelines loaded successfully', ['count' => $guidelines->count()]);
-
+            
             return response()->json([
                 'success' => true,
                 'data' => $guidelines
             ]);
+
         } catch (\Exception $e) {
             Log::error('Admin Guidelines Error: ' . $e->getMessage());
             return response()->json([
@@ -141,6 +143,7 @@ class AdminController extends Controller
                 'success' => true,
                 'data' => $submissions
             ]);
+
         } catch (\Exception $e) {
             Log::error('Get Submissions Data Error: ' . $e->getMessage());
             return response()->json([
@@ -179,6 +182,7 @@ class AdminController extends Controller
                 'message' => 'Panduan berhasil dibuat',
                 'data' => $guideline
             ]);
+
         } catch (\Exception $e) {
             Log::error('Create Guideline Error: ' . $e->getMessage());
             return response()->json([
@@ -216,6 +220,7 @@ class AdminController extends Controller
                 'message' => 'Panduan berhasil diperbarui',
                 'data' => $guideline
             ]);
+
         } catch (\Exception $e) {
             Log::error('Update Guideline Error: ' . $e->getMessage());
             return response()->json([
@@ -231,7 +236,7 @@ class AdminController extends Controller
         try {
             $guideline = Guideline::findOrFail($id);
             $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
-
+            
             return response()->json([
                 'success' => true,
                 'data' => $guideline
@@ -249,7 +254,7 @@ class AdminController extends Controller
     {
         try {
             $guideline = Guideline::findOrFail($id);
-
+            
             // Check if guideline is being used
             if ($guideline->submissions()->exists()) {
                 return response()->json([
@@ -266,6 +271,7 @@ class AdminController extends Controller
                 'success' => true,
                 'message' => 'Panduan berhasil dihapus'
             ]);
+
         } catch (\Exception $e) {
             Log::error('Delete Guideline Error: ' . $e->getMessage());
             return response()->json([
@@ -287,7 +293,7 @@ class AdminController extends Controller
             'completed' => 'Selesai',
             'rejected' => 'Ditolak'
         ];
-
+        
         return $labels[$status] ?? 'Status Tidak Dikenal';
     }
 }
