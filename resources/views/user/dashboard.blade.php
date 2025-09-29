@@ -504,10 +504,10 @@
                                     class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
                                     <option value="">Pilih jenis layanan yang diinginkan</option>
                                     @if (isset($guidelines))
-                                        @foreach ($guidelines as $guideline)
+                                    @foreach ($guidelines as $guideline)
                                             <option value="{{ $guideline->id }}" data-type="{{ $guideline->type }}"
                                                 data-fee="{{ $guideline->fee ?? 0 }}"
-                                                data-documents="{{ htmlspecialchars(json_encode(safe_json_decode($guideline->required_documents, [])), ENT_QUOTES, 'UTF-8') }}">
+                                                data-documents='{!! json_encode(safe_json_decode($guideline->required_documents, [])) !!}'>
                                                 {{ $guideline->title ?? 'Untitled' }}
                                                 @if (($guideline->fee ?? 0) > 0)
                                                     (Rp {{ format_currency($guideline->fee) }})
@@ -925,13 +925,14 @@
                         `;
                         infoDiv.classList.remove('hidden');
 
-                        // Show document fields if required
-                        if (documents.length > 0) {
-                            const documentFields = document.getElementById('documentFields');
-                            documentFields.innerHTML = documents.map((doc, index) => `
+                        // Show document fields based on required_documents array
+                        const requiredFilesCount = documents.length;
+                        const documentFields = document.getElementById('documentFields');
+                        if (requiredFilesCount > 0) {
+                            documentFields.innerHTML = documents.map((docName, index) => `
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">${doc}</label>
-                                    <input type="file" name="documents[]" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required 
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">${docName || `Dokumen ${index + 1}`}</label>
+                                    <input type="file" name="files[]" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required
                                            class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
                                     <p class="text-xs text-gray-500 mt-1">Format: PDF, DOC, DOCX, JPG, PNG (Max 5MB)</p>
                                 </div>
@@ -1109,10 +1110,10 @@
                                             Detail
                                         </button>
                                         ${submission.status === 'payment_pending' && submission.guideline ? `
-                                                    <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
-                                                        Bayar
-                                                    </button>
-                                                ` : ''}
+                                                            <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
+                                                                Bayar
+                                                            </button>
+                                                        ` : ''}
                                     </div>
                                 </td>
                             </tr>

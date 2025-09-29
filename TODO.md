@@ -1,55 +1,36 @@
-# BMKG STAMAR Project Production Preparation TODO
+# Testing Workflow for User Submission to Admin Archiving
 
 ## Current Status
 
--   [x] Analyzed project structure, controllers, configs, and assets.
--   [x] Fixed autoload issue via dump-autoload.
--   [x] Generated application key.
+-   [x] Fix document upload validation mismatch (frontend JS and backend controller).
 
-## Pending Steps for Production Readiness
+## Testing Steps
 
-1. **Restore Full Dependencies**  
-   Run `composer install` (without --no-dev) to ensure all dependencies, including dev ones needed locally, are installed. This fixes any missing packages like deep-copy.
+1. Start local server: Run `php artisan serve` to host the app at http://127.0.0.1:8000.
+2. User Flow:
+    - Launch browser to http://127.0.0.1:8000/login.
+    - Login as user (use seeded user, e.g., email: user@example.com, password: password).
+    - Navigate to dashboard, select a guideline (e.g., one requiring 2 docs like "Surat Permohonan" and "Surat Tugas").
+    - Fill form: Purpose, dates, upload exact number of files matching required docs.
+    - Submit and verify success (no error, redirect to history, new submission appears).
+3. Admin Flow:
+    - Close browser, relaunch, login as admin (e.g., email: admin@example.com, password: password).
+    - Go to admin dashboard, find the new submission (pending).
+    - Verify: Update status to 'verified', add history.
+    - If PNBP: Handle payment pending -> user uploads proof (simulate or note), admin approves to 'paid'.
+    - Process: Update to 'processing', generate document if needed.
+    - Complete: Update to 'completed', generate archive entry.
+    - Archive: Move to archive table/model.
+4. Verify End-to-End:
+    - User sees completed status, can download document.
+    - Admin sees archived item.
+    - No errors in console/logs; fix any via code edits.
+5. Cleanup: Close browser, stop server if needed.
 
-2. **Run Database Migrations**  
-   Execute `php artisan migrate --force` to apply all pending migrations (applications, payments, guidelines, etc.). This sets up the schema.
+## Pending
 
-3. **Run Database Seeder**  
-   Execute `php artisan db:seed --class=CompleteSeeder` to populate initial data (users, guidelines, etc.). Assumes DB credentials are set in .env.
-
-4. **Clear and Cache Configurations**
-
-    - `php artisan config:clear && php artisan config:cache`
-    - `php artisan route:cache`
-    - `php artisan view:cache`  
-      This optimizes for production by caching configs, routes, and views.
-
-5. **Optimize Autoloader and Classes**  
-   Run `php artisan optimize` to generate optimized classmap and autoloader for faster loading.
-
-6. **Verify Assets**  
-   Confirm `npm run build` has run (already done); assets are in public/build/.
-
-7. **Test Local Server**  
-   Run `php artisan serve` and verify admin/user dashboards load without errors via browser.
-
-8. **Hosting Preparation**
-    - Set APP_ENV=production in .env on server.
-    - Configure DB credentials (DB_HOST, DB_DATABASE, etc.).
-    - Run above steps on server.
-    - Set permissions: `chmod -R 775 storage bootstrap/cache` (on Linux server).
-    - Ensure web server (Apache/Nginx) points to public/.
-    - If queues needed (none apparent), set up supervisor for `php artisan queue:work`.
-
-## Completed Steps
-
--   [x] Step 1: Restore dependencies
--   [x] Step 2: Migrations (already run)
--   [x] Step 3: Seeding
--   [x] Step 4: Caching
--   [x] Step 5: Optimization
--   [x] Step 6: Assets verification
--   [ ] Step 7: Local testing
--   [ ] Step 8: Hosting checklist provided
-
-_Note: If any step fails (e.g., migration conflicts from duplicate columns like add_date_columns), will investigate and fix specific files._
+-   [ ] Execute server start.
+-   [ ] Browser testing (user submission).
+-   [ ] Browser testing (admin processing).
+-   [ ] Fix any errors found.
+-   [ ] Confirm full workflow complete.

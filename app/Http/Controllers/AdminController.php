@@ -23,7 +23,7 @@ class AdminController extends Controller
         try {
             // Test database connection
             DB::connection()->getPdo();
-            
+
             // Enhanced statistics
             $stats = [
                 'pending_requests' => Submission::where('status', 'pending')->count(),
@@ -42,15 +42,17 @@ class AdminController extends Controller
                 ->take(10)
                 ->get()
                 ->map(function ($submission) {
+                    $user = $submission->user;
+                    $guideline = $submission->guideline;
                     return [
                         'id' => $submission->id,
                         'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
-                        'user_name' => $submission->user->name ?? 'N/A',
-                        'guideline_title' => $submission->guideline->title ?? 'N/A',
+                        'user_name' => $user ? $user->name : 'N/A',
+                        'guideline_title' => $guideline ? $guideline->title : 'N/A',
                         'status' => $submission->status,
                         'status_label' => $this->getStatusLabel($submission->status),
                         'created_at_formatted' => $submission->created_at->format('d/m/Y H:i'),
-                        'type_label' => ($submission->guideline->type ?? 'non_pnbp') === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)'
+                        'type_label' => ($guideline ? $guideline->type : 'non_pnbp') === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)'
                     ];
                 });
 
@@ -60,10 +62,9 @@ class AdminController extends Controller
             ]);
 
             return view('admin.dashboard', compact('stats', 'recentSubmissions'));
-
         } catch (\Exception $e) {
             Log::error('Admin Dashboard Error: ' . $e->getMessage());
-            
+
             // Fallback data
             $stats = [
                 'pending_requests' => 0,
@@ -75,30 +76,29 @@ class AdminController extends Controller
                 'today_submissions' => 0,
                 'this_month_submissions' => 0
             ];
-            
+
             $recentSubmissions = collect();
-            
+
             return view('admin.dashboard', compact('stats', 'recentSubmissions'))
                 ->with('error', 'Error loading dashboard: ' . $e->getMessage());
         }
     }
 
-    // Manajemen Guidelines - FIXED
-    public function guidelines()
+    // Get Guidelines - FIXED
+    public function getGuidelines()
     {
         try {
-            $guidelines = Guideline::orderBy('created_at', 'desc')->get()->map(function($guideline) {
+            $guidelines = Guideline::orderBy('created_at', 'desc')->get()->map(function ($guideline) {
                 $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
                 return $guideline;
             });
-            
+
             Log::info('Guidelines loaded successfully', ['count' => $guidelines->count()]);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $guidelines
             ]);
-
         } catch (\Exception $e) {
             Log::error('Admin Guidelines Error: ' . $e->getMessage());
             return response()->json([
@@ -109,31 +109,40 @@ class AdminController extends Controller
         }
     }
 
-    // Get Submissions Data - FIXED
-    public function getSubmissionsData()
+    // Get Submissions - FIXED
+    public function getSubmissions()
     {
         try {
-            $submissions = Submission::with(['user', 'guideline'])
-                ->orderBy('created_at', 'desc')
-                ->get()
+            $statusFilter = request()->get('status', '');
+
+            $query = Submission::with(['user', 'guideline'])
+                ->orderBy('created_at', 'desc');
+
+            if ($statusFilter) {
+                $query->where('status', $statusFilter);
+            }
+
+            $submissions = $query->get()
                 ->map(function ($submission) {
+                    $user = $submission->user;
+                    $guideline = $submission->guideline;
                     return [
                         'id' => $submission->id,
                         'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
                         'user' => [
-                            'id' => $submission->user->id ?? null,
-                            'name' => $submission->user->name ?? 'N/A',
-                            'email' => $submission->user->email ?? 'N/A'
+                            'id' => $user ? $user->id : null,
+                            'name' => $user ? $user->name : 'N/A',
+                            'email' => $user ? $user->email : 'N/A'
                         ],
                         'guideline' => [
-                            'id' => $submission->guideline->id ?? null,
-                            'title' => $submission->guideline->title ?? 'N/A',
-                            'type' => $submission->guideline->type ?? 'non_pnbp',
-                            'fee' => $submission->guideline->fee ?? 0
+                            'id' => $guideline ? $guideline->id : null,
+                            'title' => $guideline ? $guideline->title : 'N/A',
+                            'type' => $guideline ? $guideline->type : 'non_pnbp',
+                            'fee' => $guideline ? $guideline->fee : 0
                         ],
                         'status' => $submission->status,
                         'status_label' => $this->getStatusLabel($submission->status),
-                        'type_label' => ($submission->guideline->type ?? 'non_pnbp') === 'pnbp' ? 'PNBP' : 'Non-PNBP',
+                        'type_label' => ($guideline ? $guideline->type : 'non_pnbp') === 'pnbp' ? 'PNBP' : 'Non-PNBP',
                         'created_at' => $submission->created_at->format('d/m/Y H:i'),
                         'created_at_formatted' => $submission->created_at->format('d/m/Y H:i')
                     ];
@@ -143,9 +152,8 @@ class AdminController extends Controller
                 'success' => true,
                 'data' => $submissions
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Get Submissions Data Error: ' . $e->getMessage());
+            Log::error('Get Submissions Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error loading submissions data',
@@ -182,7 +190,6 @@ class AdminController extends Controller
                 'message' => 'Panduan berhasil dibuat',
                 'data' => $guideline
             ]);
-
         } catch (\Exception $e) {
             Log::error('Create Guideline Error: ' . $e->getMessage());
             return response()->json([
@@ -220,7 +227,6 @@ class AdminController extends Controller
                 'message' => 'Panduan berhasil diperbarui',
                 'data' => $guideline
             ]);
-
         } catch (\Exception $e) {
             Log::error('Update Guideline Error: ' . $e->getMessage());
             return response()->json([
@@ -236,7 +242,7 @@ class AdminController extends Controller
         try {
             $guideline = Guideline::findOrFail($id);
             $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $guideline
@@ -254,7 +260,7 @@ class AdminController extends Controller
     {
         try {
             $guideline = Guideline::findOrFail($id);
-            
+
             // Check if guideline is being used
             if ($guideline->submissions()->exists()) {
                 return response()->json([
@@ -271,7 +277,6 @@ class AdminController extends Controller
                 'success' => true,
                 'message' => 'Panduan berhasil dihapus'
             ]);
-
         } catch (\Exception $e) {
             Log::error('Delete Guideline Error: ' . $e->getMessage());
             return response()->json([
@@ -281,7 +286,300 @@ class AdminController extends Controller
         }
     }
 
-    // Helper method untuk status label
+    // Get Payments - FIXED
+    public function getPayments()
+    {
+        try {
+            $payments = Payment::with(['submission.user', 'submission.guideline'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($payment) {
+                    $submission = $payment->submission;
+                    $user = $submission ? $submission->user : null;
+                    return [
+                        'id' => $payment->id,
+                        'submission_id' => $payment->submission_id,
+                        'submission_number' => $submission ? ($submission->submission_number ?? 'SUB-' . str_pad($payment->submission_id, 4, '0', STR_PAD_LEFT)) : 'N/A',
+                        'user_name' => $user ? $user->name : 'N/A',
+                        'amount' => $payment->amount,
+                        'status' => $payment->status,
+                        'status_label' => $this->getPaymentStatusLabel($payment->status),
+                        'payment_method' => $payment->payment_method,
+                        'created_at' => $payment->created_at->format('d/m/Y H:i'),
+                        'paid_at' => $payment->paid_at ? $payment->paid_at->format('d/m/Y H:i') : null
+                    ];
+                });
+
+            Log::info('Payments loaded successfully', ['count' => $payments->count()]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $payments
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Payments Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading payments: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    // Get Documents - FIXED
+    public function getDocuments()
+    {
+        try {
+            $documents = GeneratedDocument::with(['submission.user', 'submission.guideline'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($document) {
+                    $submission = $document->submission;
+                    $user = $submission ? $submission->user : null;
+                    return [
+                        'id' => $document->id,
+                        'submission_id' => $document->submission_id,
+                        'submission_number' => $submission ? ($submission->submission_number ?? 'SUB-' . str_pad($document->submission_id, 4, '0', STR_PAD_LEFT)) : 'N/A',
+                        'user_name' => $user ? $user->name : 'N/A',
+                        'document_name' => $document->document_name,
+                        'document_type' => $document->document_type,
+                        'file_size' => $this->formatFileSize($document->file_size),
+                        'created_at' => $document->created_at->format('d/m/Y H:i'),
+                        'url' => \Illuminate\Support\Facades\Storage::url($document->document_path)
+                    ];
+                });
+
+            Log::info('Documents loaded successfully', ['count' => $documents->count()]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $documents
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Documents Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading documents: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    // Get Archives - FIXED
+    public function getArchives()
+    {
+        try {
+            $archives = Archive::with(['submission.user', 'submission.guideline'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($archive) {
+                    $submission = $archive->submission;
+                    $user = $submission ? $submission->user : null;
+                    return [
+                        'id' => $archive->id,
+                        'submission_id' => $archive->submission_id,
+                        'submission_number' => $submission ? ($submission->submission_number ?? 'SUB-' . str_pad($archive->submission_id, 4, '0', STR_PAD_LEFT)) : 'N/A',
+                        'user_name' => $user ? $user->name : 'N/A',
+                        'archive_reason' => $archive->archive_reason,
+                        'archived_at' => $archive->archived_at ? $archive->archived_at->format('d/m/Y H:i') : null,
+                        'created_at' => $archive->created_at->format('d/m/Y H:i')
+                    ];
+                });
+
+            Log::info('Archives loaded successfully', ['count' => $archives->count()]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $archives
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Archives Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading archives: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    // Get Users - FIXED
+    public function getUsers()
+    {
+        try {
+            $users = User::where('role', 'user')->orderBy('created_at', 'desc')->get()->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'created_at' => $user->created_at->format('d/m/Y H:i'),
+                    'status' => 'active' // Assuming all users are active for now
+                ];
+            });
+
+            Log::info('Users loaded successfully', ['count' => $users->count()]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $users
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin Users Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading users: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    // Get Submission Detail - NEW
+    public function getSubmissionDetail($id)
+    {
+        try {
+            $submission = Submission::with(['user', 'guideline', 'submissionFiles', 'payment', 'submissionHistory'])
+                ->findOrFail($id);
+
+            $data = [
+                'id' => $submission->id,
+                'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
+                'status' => $submission->status,
+                'status_label' => $this->getStatusLabel($submission->status),
+                'purpose' => $submission->purpose ?? 'N/A',
+                'created_at' => $submission->created_at->format('d/m/Y H:i'),
+                'user' => [
+                    'name' => $submission->user ? $submission->user->name : 'N/A',
+                    'email' => $submission->user ? $submission->user->email : 'N/A',
+                    'phone' => $submission->user ? $submission->user->phone : 'N/A'
+                ],
+                'guideline' => [
+                    'title' => $submission->guideline ? $submission->guideline->title : 'N/A',
+                    'type' => $submission->guideline ? $submission->guideline->type : 'non_pnbp',
+                    'fee' => $submission->guideline ? $submission->guideline->fee : 0,
+                    'required_documents' => $submission->guideline ? safe_json_decode($submission->guideline->required_documents, []) : []
+                ],
+                'files' => $submission->submissionFiles->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'file_name' => $file->file_name,
+                        'file_path' => \Illuminate\Support\Facades\Storage::url($file->file_path),
+                        'file_size' => $this->formatFileSize($file->file_size),
+                        'uploaded_at' => $file->created_at->format('d/m/Y H:i')
+                    ];
+                }),
+                'payment' => $submission->payment ? [
+                    'id' => $submission->payment->id,
+                    'amount' => $submission->payment->amount,
+                    'status' => $submission->payment->status,
+                    'status_label' => $this->getPaymentStatusLabel($submission->payment->status),
+                    'payment_method' => $submission->payment->payment_method,
+                    'paid_at' => $submission->payment->paid_at ? $submission->payment->paid_at->format('d/m/Y H:i') : null
+                ] : null,
+                'history' => $submission->submissionHistory->map(function ($history) {
+                    return [
+                        'id' => $history->id,
+                        'status' => $history->status,
+                        'notes' => $history->notes ?? 'N/A',
+                        'created_at' => $history->created_at->format('d/m/Y H:i'),
+                        'user_name' => $history->user ? $history->user->name : 'Admin'
+                    ];
+                })->sortByDesc('created_at')
+            ];
+
+            Log::info('Submission detail loaded', ['submission_id' => $id]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get Submission Detail Error: ' . $e->getMessage(), ['submission_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Submission not found or error loading details',
+                'data' => null
+            ], 404);
+        }
+    }
+
+    // Verify/Approve Submission - NEW
+    public function verifySubmission(Request $request, $id)
+    {
+        try {
+            $submission = Submission::findOrFail($id);
+
+            $nextStatus = $submission->guideline && $submission->guideline->type === 'pnbp' ? 'payment_pending' : 'processing';
+
+            $submission->update(['status' => $nextStatus]);
+
+            // Create history entry
+            if (class_exists('App\Models\SubmissionHistory')) {
+                \App\Models\SubmissionHistory::create([
+                    'submission_id' => $id,
+                    'user_id' => Auth::id(),
+                    'status' => $nextStatus,
+                    'notes' => 'Submission verified/approved by admin'
+                ]);
+            }
+
+            Log::info('Submission verified', ['submission_id' => $id, 'new_status' => $nextStatus]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Submission approved successfully',
+                'data' => ['status' => $nextStatus]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Verify Submission Error: ' . $e->getMessage(), ['submission_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve submission: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Reject Submission - NEW
+    public function rejectSubmission(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'reason' => 'required|string|max:500'
+            ]);
+
+            $submission = Submission::findOrFail($id);
+
+            $submission->update([
+                'status' => 'rejected',
+                'rejected_reason' => $request->reason // Assume column exists, or add to history
+            ]);
+
+            // Create history entry
+            if (class_exists('App\Models\SubmissionHistory')) {
+                \App\Models\SubmissionHistory::create([
+                    'submission_id' => $id,
+                    'user_id' => Auth::id(),
+                    'status' => 'rejected',
+                    'notes' => 'Rejected: ' . $request->reason
+                ]);
+            }
+
+            Log::info('Submission rejected', ['submission_id' => $id, 'reason' => $request->reason]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Submission rejected successfully',
+                'data' => ['status' => 'rejected']
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Reject Submission Error: ' . $e->getMessage(), ['submission_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reject submission: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Helper methods
     private function getStatusLabel($status)
     {
         $labels = [
@@ -293,7 +591,32 @@ class AdminController extends Controller
             'completed' => 'Selesai',
             'rejected' => 'Ditolak'
         ];
-        
+
         return $labels[$status] ?? 'Status Tidak Dikenal';
+    }
+
+    private function getPaymentStatusLabel($status)
+    {
+        $labels = [
+            'pending' => 'Menunggu Pembayaran',
+            'uploaded' => 'Bukti Diupload',
+            'verified' => 'Pembayaran Diterima',
+            'rejected' => 'Pembayaran Ditolak'
+        ];
+
+        return $labels[$status] ?? 'Status Tidak Dikenal';
+    }
+
+    private function formatFileSize($bytes)
+    {
+        if ($bytes >= 1073741824) {
+            return number_format($bytes / 1073741824, 2) . ' GB';
+        } elseif ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2) . ' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 2) . ' KB';
+        } else {
+            return $bytes . ' bytes';
+        }
     }
 }

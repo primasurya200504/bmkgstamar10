@@ -7,6 +7,7 @@ use App\Models\Guideline;
 use App\Models\Payment;
 use App\Models\GeneratedDocument;
 use App\Models\SubmissionHistory;
+use App\Models\SubmissionFile;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,7 @@ class UserController extends Controller
                 return [
                     'id' => $submission->id,
                     'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
-                    'guideline' => (object)[
+                    'guideline' => [
                         'title' => $submission->guideline ? $submission->guideline->title : 'N/A'
                     ],
                     'status' => $submission->status,
@@ -120,16 +121,17 @@ class UserController extends Controller
             $submissions = $query->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($submission) {
+                    $guideline = $submission->guideline;
                     return [
                         'id' => $submission->id,
                         'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
                         'guideline' => [
-                            'title' => $submission->guideline->title ?? 'N/A',
-                            'type' => $submission->guideline->type ?? 'non_pnbp',
-                            'fee' => $submission->guideline->fee ?? 0
+                            'title' => $guideline ? $guideline->title : 'N/A',
+                            'type' => $guideline ? $guideline->type : 'non_pnbp',
+                            'fee' => $guideline ? $guideline->fee : 0
                         ],
                         'status' => $submission->status,
-                        'type' => $submission->guideline->type ?? 'non_pnbp', // Untuk filtering di frontend
+                        'type' => $guideline ? $guideline->type : 'non_pnbp', // Untuk filtering di frontend
                         'created_at' => $submission->created_at->format('d/m/Y'),
                         'payment' => $submission->payment ? [
                             'amount' => $submission->payment->amount,
@@ -165,16 +167,17 @@ class UserController extends Controller
                 ->with(['guideline', 'payment', 'histories.actor', 'generatedDocuments'])
                 ->firstOrFail();
 
+            $guideline = $submission->guideline;
             // Format data untuk response
             $submissionData = [
                 'id' => $submission->id,
                 'submission_number' => $submission->submission_number,
                 'guideline' => [
-                    'title' => $submission->guideline->title,
-                    'description' => $submission->guideline->description,
-                    'type' => $submission->guideline->type,
-                    'fee' => $submission->guideline->fee,
-                    'required_documents' => safe_json_decode($submission->guideline->required_documents, [])
+                    'title' => $guideline ? $guideline->title : 'N/A',
+                    'description' => $guideline ? $guideline->description : 'N/A',
+                    'type' => $guideline ? $guideline->type : 'non_pnbp',
+                    'fee' => $guideline ? $guideline->fee : 0,
+                    'required_documents' => $guideline ? safe_json_decode($guideline->required_documents, []) : []
                 ],
                 'purpose' => $submission->purpose,
                 'start_date' => $submission->start_date,
@@ -222,9 +225,9 @@ class UserController extends Controller
     }
 
     /**
-     * Submit Pengajuan Surat/Data - FIXED dengan nama method yang sesuai route
+     * Store Submission - FIXED dengan nama method yang sesuai route
      */
-    public function submitSurat(Request $request)
+    public function storeSubmission(Request $request)
     {
         try {
             $request->validate([
@@ -232,11 +235,14 @@ class UserController extends Controller
                 'purpose' => 'required|string|max:1000',
                 'start_date' => 'required|date',
                 'end_date' => 'required|date|after_or_equal:start_date',
-                'documents.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120'
+                'files.*' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120'
             ]);
 
             $user = Auth::user();
             $guideline = Guideline::findOrFail($request->guideline_id);
+
+            // Decode required documents safely
+            $requiredDocs = safe_json_decode($guideline->required_documents, []);
 
             DB::beginTransaction();
 
@@ -257,22 +263,27 @@ class UserController extends Controller
                 'status' => 'pending'
             ]);
 
-            // Handle document uploads
-            if ($request->hasFile('documents')) {
-                foreach ($request->file('documents') as $index => $file) {
-                    $path = $file->store('submissions/' . $submission->id, 'public');
+            // Handle file uploads based on required documents
+            $expectedFileCount = count($requiredDocs);
+            $uploadedFiles = $request->file('files', []);
 
-                    // Create document record (using GeneratedDocument model)
-                    GeneratedDocument::create([
-                        'submission_id' => $submission->id,
-                        'document_name' => $file->getClientOriginalName(),
-                        'document_path' => $path,
-                        'document_type' => 'supporting_document',
-                        'file_size' => $file->getSize(),
-                        'mime_type' => $file->getClientMimeType(),
-                        'uploaded_by' => $user->id
-                    ]);
-                }
+            if ($expectedFileCount > 0 && count($uploadedFiles) !== $expectedFileCount) {
+                throw new \Exception("Jumlah file yang diupload tidak sesuai. Diperlukan {$expectedFileCount} file untuk layanan ini.");
+            }
+
+            foreach ($uploadedFiles as $index => $file) {
+                $documentName = isset($requiredDocs[$index]) ? $requiredDocs[$index] : 'Dokumen ' . ($index + 1);
+                $path = $file->store('submissions/' . $submission->id, 'public');
+
+                // Create file record using SubmissionFile model
+                SubmissionFile::create([
+                    'submission_id' => $submission->id,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'file_type' => $file->getClientMimeType(),
+                    'file_size' => $file->getSize(),
+                    'document_name' => $documentName
+                ]);
             }
 
             // Create history
@@ -415,6 +426,7 @@ class UserController extends Controller
     public function history()
     {
         try {
+            /** @var \App\Models\User $user */
             $user = Auth::user();
 
             // Get submissions with safe handling
@@ -425,17 +437,18 @@ class UserController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($submission) {
+                    $guideline = $submission->guideline;
                     return [
                         'id' => $submission->id,
                         'submission_number' => $submission->submission_number ?? 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
                         'guideline' => [
-                            'title' => $submission->guideline->title ?? 'N/A',
-                            'type' => $submission->guideline->type ?? 'non_pnbp',
-                            'fee' => $submission->guideline->fee ?? 0
+                            'title' => $guideline ? $guideline->title : 'N/A',
+                            'type' => $guideline ? $guideline->type : 'non_pnbp',
+                            'fee' => $guideline ? $guideline->fee : 0
                         ],
                         'status' => $submission->status,
                         'status_label' => $this->getStatusLabel($submission->status),
-                        'type_label' => ($submission->guideline->type ?? 'non_pnbp') === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)',
+                        'type_label' => ($guideline ? $guideline->type : 'non_pnbp') === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)',
                         'created_at' => $submission->created_at->format('d/m/Y'),
                         'created_at_formatted' => $submission->created_at->format('d/m/Y H:i'),
                         'time_ago' => $submission->created_at->diffForHumans(),
@@ -501,6 +514,7 @@ class UserController extends Controller
                 'password' => 'nullable|confirmed|min:8'
             ]);
 
+            /** @var \App\Models\User $user */
             $user = Auth::user();
 
             $updateData = [
@@ -542,6 +556,7 @@ class UserController extends Controller
                 'new_password' => 'required|confirmed|min:8'
             ]);
 
+            /** @var \App\Models\User $user */
             $user = Auth::user();
 
             if (!Hash::check($request->current_password, $user->password)) {
@@ -626,13 +641,14 @@ class UserController extends Controller
                 ], 404);
             }
 
+            $guideline = $submission->guideline;
             return response()->json([
                 'success' => true,
                 'data' => [
                     'status' => $submission->status,
                     'status_label' => $this->getStatusLabel($submission->status),
                     'progress_percentage' => $this->calculateProgressPercentage($submission->status),
-                    'can_pay' => $submission->status === 'payment_pending' && $submission->guideline->fee > 0,
+                    'can_pay' => $submission->status === 'payment_pending' && $guideline && $guideline->fee > 0,
                     'can_download' => $submission->status === 'completed'
                 ]
             ]);

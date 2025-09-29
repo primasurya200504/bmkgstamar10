@@ -8,15 +8,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__ . '/../routes/web.php',
         commands: __DIR__ . '/../routes/console.php',
-        health: '/up',
-        // Hapus api route karena kita tidak menggunakannya
-        then: function () {
-            Route::middleware('api')
-                ->prefix('api')
-                ->group(function () {
-                    // API routes kosong untuk saat ini
-                });
-        }
+        health: '/up'
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([

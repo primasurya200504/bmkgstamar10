@@ -46,7 +46,7 @@ return new class extends Migration
                     if (Schema::hasColumn('submission_histories', 'application_id')) {
                         // Drop existing foreign key if exists
                         try {
-                            $table->dropForeign(['application_id']);
+                            DB::statement('ALTER TABLE submission_histories DROP FOREIGN KEY application_histories_application_id_foreign');
                         } catch (\Exception $e) {
                             // Ignore if foreign key doesn't exist
                         }
@@ -64,7 +64,7 @@ return new class extends Migration
                     if (Schema::hasColumn('payments', 'application_id')) {
                         // Drop existing foreign key if exists
                         try {
-                            $table->dropForeign(['application_id']);
+                            DB::statement('ALTER TABLE payments DROP FOREIGN KEY payments_application_id_foreign');
                         } catch (\Exception $e) {
                             // Ignore if foreign key doesn't exist
                         }
@@ -82,7 +82,7 @@ return new class extends Migration
                     if (Schema::hasColumn('generated_documents', 'application_id')) {
                         // Drop existing foreign key if exists
                         try {
-                            $table->dropForeign(['application_id']);
+                            DB::statement('ALTER TABLE generated_documents DROP FOREIGN KEY generated_documents_application_id_foreign');
                         } catch (\Exception $e) {
                             // Ignore if foreign key doesn't exist
                         }

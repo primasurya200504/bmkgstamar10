@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->string('title');
             $table->text('description')->nullable();
             $table->json('metadata')->nullable();
-            $table->timestamp('created_at');
+            $table->timestamps();
             
             $table->index(['application_id', 'created_at']);
             $table->index(['action']);

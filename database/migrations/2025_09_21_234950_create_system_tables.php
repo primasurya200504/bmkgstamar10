@@ -40,8 +40,12 @@ return new class extends Migration
                 $table->foreignId('application_id')->constrained()->onDelete('cascade');
                 $table->decimal('amount', 10, 2);
                 $table->string('payment_proof')->nullable();
-                $table->enum('status', ['pending', 'verified', 'rejected'])->default('pending');
+                $table->string('payment_method')->nullable();
+                $table->string('payment_reference')->nullable();
+                $table->enum('status', ['pending', 'uploaded', 'verified', 'rejected'])->default('pending');
                 $table->timestamp('paid_at')->nullable();
+                $table->timestamp('verified_at')->nullable();
+                $table->foreignId('verified_by')->nullable()->constrained('users');
                 $table->timestamps();
             });
         }

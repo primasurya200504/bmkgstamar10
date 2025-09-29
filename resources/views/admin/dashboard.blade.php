@@ -507,25 +507,202 @@
                 </div>
             </section>
 
-            <!-- Other sections (Payments, Documents, Users) - Placeholder -->
+            <!-- Payments Section -->
             <section id="payments" class="content-section hidden">
-                <div class="bg-white rounded-2xl shadow-lg p-8">
-                    <h2 class="text-2xl font-bold mb-4">Manajemen Pembayaran</h2>
-                    <p class="text-gray-600">Section ini akan dikembangkan selanjutnya.</p>
+                <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">Manajemen Pembayaran</h2>
+                            <p class="text-gray-600 mt-2">Kelola pembayaran dari pengajuan</p>
+                        </div>
+                        <button onclick="loadPayments()"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
+                            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div class="overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            No. Surat</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            User</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Jumlah</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Metode</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Status</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Tanggal</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paymentsTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                            <div class="flex items-center justify-center">
+                                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400"
+                                                    xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                    viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                        stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                    </path>
+                                                </svg>
+                                                Loading...
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </section>
 
+            <!-- Documents Section -->
             <section id="documents" class="content-section hidden">
-                <div class="bg-white rounded-2xl shadow-lg p-8">
-                    <h2 class="text-2xl font-bold mb-4">Upload Dokumen</h2>
-                    <p class="text-gray-600">Section ini akan dikembangkan selanjutnya.</p>
+                <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">Upload Dokumen</h2>
+                            <p class="text-gray-600 mt-2">Kelola dokumen yang dihasilkan</p>
+                        </div>
+                        <button onclick="loadDocuments()"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
+                            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div class="overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            No. Surat</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            User</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Dokumen</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Tipe</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Ukuran</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Tanggal</th>
+                                        <th
+                                            class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="documentsTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                                            <div class="flex items-center justify-center">
+                                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400"
+                                                    xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                    viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                        stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                    </path>
+                                                </svg>
+                                                Loading...
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </section>
 
+            <!-- Users Section -->
             <section id="users" class="content-section hidden">
-                <div class="bg-white rounded-2xl shadow-lg p-8">
-                    <h2 class="text-2xl font-bold mb-4">Manajemen Pengguna</h2>
-                    <p class="text-gray-600">Section ini akan dikembangkan selanjutnya.</p>
+                <div class="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">Manajemen Pengguna</h2>
+                            <p class="text-gray-600 mt-2">Kelola pengguna terdaftar</p>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button onclick="showUserModal()"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
+                                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                Tambah User
+                            </button>
+                            <button onclick="loadUsers()"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-colors">
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                                            Nama</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                                            Email</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                                            Telepon</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                                            Tanggal Daftar</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                                            Status</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">
+                                            Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -752,10 +929,10 @@
                                         Detail
                                     </button>
                                     ${submission.status === 'pending' ? `
-                                            <button onclick="showActions(${submission.id})" class="text-green-600 hover:text-green-900 transition-colors">
-                                                Review
-                                            </button>
-                                        ` : ''}
+                                                    <button onclick="showActions(${submission.id})" class="text-green-600 hover:text-green-900 transition-colors">
+                                                        Review
+                                                    </button>
+                                                ` : ''}
                                 </td>
                             </tr>
                         `;
@@ -818,6 +995,183 @@
             } catch (error) {
                 console.error('Error loading guidelines:', error);
                 showErrorState('guidelinesTableBody', 5, 'Error loading guidelines: ' + error.message);
+            }
+        }
+
+        // Load Payments - NEW
+        async function loadPayments() {
+            try {
+                showLoadingState('paymentsTableBody', 7);
+
+                const response = await fetch('/admin/payments', {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content')
+                    }
+                });
+
+                const result = await response.json();
+                const tbody = document.getElementById('paymentsTableBody');
+                const statusConfig = {
+                    'pending': 'bg-yellow-100 text-yellow-800',
+                    'uploaded': 'bg-orange-100 text-orange-800',
+                    'verified': 'bg-green-100 text-green-800',
+                    'rejected': 'bg-red-100 text-red-800'
+                };
+
+                if (result.success && result.data.length > 0) {
+                    tbody.innerHTML = result.data.map(payment => `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${payment.submission_number}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${payment.user_name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                Rp ${new Intl.NumberFormat('id-ID').format(payment.amount)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${payment.payment_method}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="status-badge ${statusConfig[payment.status] || 'bg-gray-100 text-gray-800'}">
+                                    ${payment.status_label}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${payment.created_at}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                ${payment.status === 'pending' || payment.status === 'uploaded' ? `
+                                        <button onclick="verifyPayment(${payment.id})" class="text-green-600 hover:text-green-900 transition-colors mr-2">
+                                            Verifikasi
+                                        </button>
+                                    ` : ''}
+                                <button onclick="showPaymentDetail(${payment.id})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                    Detail
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    showEmptyState('paymentsTableBody', 7, 'Tidak ada pembayaran', result.message ||
+                        'Belum ada data pembayaran');
+                }
+            } catch (error) {
+                console.error('Error loading payments:', error);
+                showErrorState('paymentsTableBody', 7, 'Error loading payments: ' + error.message);
+            }
+        }
+
+        // Load Documents - NEW
+        async function loadDocuments() {
+            try {
+                showLoadingState('documentsTableBody', 7);
+
+                const response = await fetch('/admin/documents', {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content')
+                    }
+                });
+
+                const result = await response.json();
+                const tbody = document.getElementById('documentsTableBody');
+
+                if (result.success && result.data.length > 0) {
+                    tbody.innerHTML = result.data.map(document => `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${document.submission_number}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${document.user_name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${document.document_name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${document.document_type}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${document.file_size}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${document.created_at}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="${document.url}" target="_blank" class="text-indigo-600 hover:text-indigo-900 transition-colors mr-2">
+                                    Download
+                                </a>
+                                <button onclick="viewDocument('${document.url}')" class="text-blue-600 hover:text-blue-900 transition-colors">
+                                    Lihat
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    showEmptyState('documentsTableBody', 7, 'Tidak ada dokumen', result.message ||
+                        'Belum ada dokumen yang dihasilkan');
+                }
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                showErrorState('documentsTableBody', 7, 'Error loading documents: ' + error.message);
+            }
+        }
+
+        // Load Users - NEW
+        async function loadUsers() {
+            try {
+                showLoadingState('usersTableBody', 6);
+
+                const response = await fetch('/admin/users', {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content')
+                    }
+                });
+
+                const result = await response.json();
+                const tbody = document.getElementById('usersTableBody');
+
+                if (result.success && result.data.length > 0) {
+                    tbody.innerHTML = result.data.map(user => `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                ${user.name}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${user.email}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${user.phone || 'N/A'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${user.created_at}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="status-badge bg-green-100 text-green-800">
+                                    Aktif
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <button onclick="editUser(${user.id})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                    Edit
+                                </button>
+                                <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-900 transition-colors">
+                                    Hapus
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    showEmptyState('usersTableBody', 6, 'Tidak ada pengguna', result.message ||
+                        'Belum ada pengguna terdaftar');
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showErrorState('usersTableBody', 6, 'Error loading users: ' + error.message);
             }
         }
 
@@ -1100,18 +1454,18 @@
                     <div class="flex">
                         <div class="flex-shrink-0">
                             ${type === 'success' ? `
-                                    <svg class="h-5 w-5 ${iconColor}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                                    </svg>
-                                ` : type === 'error' ? `
-                                    <svg class="h-5 w-5 ${iconColor}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                                    </svg>
-                                ` : `
-                                    <svg class="h-5 w-5 ${iconColor}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                                    </svg>
-                                `}
+                                            <svg class="h-5 w-5 ${iconColor}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                            </svg>
+                                        ` : type === 'error' ? `
+                                            <svg class="h-5 w-5 ${iconColor}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                            </svg>
+                                        ` : `
+                                            <svg class="h-5 w-5 ${iconColor}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                            </svg>
+                                        `}
                         </div>
                         <div class="ml-3 flex-1">
                             <h4 class="text-sm font-bold ${textColor}">${title}</h4>

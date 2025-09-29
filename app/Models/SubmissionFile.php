@@ -15,6 +15,7 @@ class SubmissionFile extends Model
         'file_path',
         'file_type',
         'file_size',
+        'document_name',
     ];
 
     public function submission()
