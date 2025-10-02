@@ -1,31 +1,57 @@
-# Admin Views Update Plan
+# TODO List
 
-## Submissions Management
+## Simple Admin Dashboard
 
--   [ ] Add rejection reason field in status modal (submissions.blade.php)
--   [x] Add re-upload functionality (submissions.js)
+-   [x] Remove complex admin dashboard features
+-   [x] Create simple admin dashboard showing submission list
+-   [x] Display submission ID, date submitted, and status in table format
+-   [x] Remove admin view files (submissions, payments, archives, users, guidelines, uploads)
+-   [x] Remove admin JS files
+-   [x] Remove AdminMiddleware and RoleMiddleware
+-   [x] Update routes to only include simple /admin/dashboard
+-   [x] Simplify AdminController to only fetch and display submissions
 
-## Payments Management
+## User Dashboard
 
--   [x] Add e-billing upload button and modal (payments.blade.php)
--   [x] Update payments.js for e-billing upload functionality
+-   [ ] Create user dashboard for submission tracking
+-   [ ] Implement submission form with file uploads
+-   [ ] Add payment integration
+-   [ ] Create submission history and status tracking
 
-## Document Upload
+## System Features
 
--   [ ] Already allows admin uploads (no changes needed)
+-   [ ] Implement authentication and authorization
+-   [ ] Add role-based access control
+-   [ ] Create notification system
+-   [ ] Implement file upload and storage
+-   [ ] Add email notifications
+-   [ ] Create audit logging
 
-## Archiving
+## Database
 
--   [ ] Add download buttons (already in archives.js, check view)
--   [ ] Add date range filters (archives.blade.php)
+-   [ ] Design and implement database schema
+-   [ ] Create migrations for all tables
+-   [ ] Add seeders for initial data
+-   [ ] Implement database relationships
 
-## User Management
+## UI/UX
 
--   [ ] Add delete confirmation modal (users.blade.php)
--   [ ] Create users.js for delete functionality
+-   [ ] Design responsive admin interface
+-   [ ] Create user-friendly submission forms
+-   [ ] Implement modern UI with Tailwind CSS
+-   [ ] Add loading states and error handling
+-   [ ] Create mobile-responsive design
 
 ## Testing
 
--   [ ] Test each updated feature
--   [ ] Ensure all modals work correctly
--   [ ] Verify download functionality works
+-   [ ] Write unit tests for models
+-   [ ] Create feature tests for controllers
+-   [ ] Add integration tests
+-   [ ] Test file upload functionality
+
+## Deployment
+
+-   [ ] Configure production environment
+-   [ ] Set up CI/CD pipeline
+-   [ ] Add monitoring and logging
+-   [ ] Implement backup strategy

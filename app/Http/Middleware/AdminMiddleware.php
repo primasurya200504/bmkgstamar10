@@ -8,16 +8,18 @@ use Illuminate\Support\Facades\Auth;
 
 class AdminMiddleware
 {
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
     public function handle(Request $request, Closure $next)
     {
-        if (!Auth::check()) {
-            return redirect()->route('login');
+        if (Auth::check() && Auth::user()->role === 'admin') {
+            return $next($request);
         }
-
-        if (!Auth::user()->isAdmin()) {
-            abort(403, 'Unauthorized. Admin access required.');
-        }
-
-        return $next($request);
+        abort(403, 'Unauthorized');
     }
 }
