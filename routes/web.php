@@ -5,18 +5,30 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\PaymentController;
 
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
 Route::middleware('auth')->group(function () {
-    // Admin routes
+    // ADMIN
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', [App\Http\Controllers\AdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/submissions', [AdminController::class, 'submissions'])->name('submissions');
+        Route::get('/users', [AdminController::class, 'users'])->name('users');
+        Route::post('/submissions/{id}/approve', [AdminController::class, 'approveSubmission'])->name('submission.approve');
+        Route::post('/submissions/{id}/reject', [AdminController::class, 'rejectSubmission'])->name('submission.reject');
+
+        // ✅ konsisten gunakan payments.index / create / store / verify
+        Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
+        Route::get('/payments/create', [AdminPaymentController::class, 'create'])->name('payments.create');
+        Route::post('/payments', [AdminPaymentController::class, 'store'])->name('payments.store');
+        Route::post('/payments/{id}/verify', [AdminPaymentController::class, 'verify'])->name('payments.verify');
     });
 
-    // User routes
+    // USER
     Route::middleware('user')->prefix('user')->name('user.')->group(function () {
         Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
         Route::get('/submissions', [UserController::class, 'getSubmissions'])->name('submissions');
@@ -27,11 +39,21 @@ Route::middleware('auth')->group(function () {
         Route::post('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
     });
 
-    // Main dashboard redirect
+    // ✅ route user untuk pembayaran
+    Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::post('/payments/{id}/upload-proof', [PaymentController::class, 'uploadProof'])->name('payments.uploadProof');
+
+    // MAIN DASHBOARD REDIRECT
     Route::get('/dashboard', function () {
-        if (Auth::user()->role === 'admin') {
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        if ($user->role === 'admin') {
             return redirect()->route('admin.dashboard');
         }
+
         return redirect()->route('user.dashboard');
     })->name('dashboard');
 });

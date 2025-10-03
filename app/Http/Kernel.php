@@ -81,8 +81,9 @@ class Kernel extends HttpKernel
         'signed' => ValidateSignature::class,
         'throttle' => ThrottleRequests::class,
         'verified' => EnsureEmailIsVerified::class,
-        //'admin' => \App\Http\Middleware\AdminMiddleware::class,
+        // PERBAIKAN UTAMA: Uncomment dan aktifkan admin middleware
+        'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'user' => \App\Http\Middleware\UserMiddleware::class,
-        //'role' => \App\Http\Middleware\RoleMiddleware::class,
+        // 'role' => \App\Http\Middleware\RoleMiddleware::class, // Biarkan comment jika tidak ada RoleMiddleware
     ];
 }
