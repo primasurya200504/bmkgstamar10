@@ -7,6 +7,7 @@ use App\Http\Controllers\GuidelineController; // Asumsi controller baru untuk pa
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\DataUploadController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -38,6 +39,14 @@ Route::middleware('auth')->group(function () {
             'update' => 'guidelines.update',
             'destroy' => 'guidelines.destroy'
         ]);
+
+        // Data Upload Management
+        Route::get('/data-uploads', [DataUploadController::class, 'index'])->name('data-uploads.index');
+        Route::get('/data-uploads/{id}', [DataUploadController::class, 'show'])->name('data-uploads.show');
+        Route::post('/data-uploads/{submissionId}/upload-document', [DataUploadController::class, 'uploadDocument'])->name('data-uploads.upload');
+        Route::get('/data-uploads/{id}/download', [DataUploadController::class, 'downloadDocument'])->name('data-uploads.download');
+        Route::delete('/data-uploads/{id}/delete', [DataUploadController::class, 'deleteDocument'])->name('data-uploads.delete');
+        Route::post('/data-uploads/{submissionId}/complete', [DataUploadController::class, 'completeUpload'])->name('data-uploads.complete');
     });
 
     // USER

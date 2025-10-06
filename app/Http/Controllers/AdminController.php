@@ -89,10 +89,10 @@ class AdminController extends Controller
 
         // Update submission status to indicate payment is verified and ready for document upload
         if ($payment->submission) {
-            $payment->submission->update(['status' => 'Diproses']);
+            $payment->submission->update(['status' => 'Diterima']);
         }
 
-        return redirect()->back()->with('success', 'Pembayaran diverifikasi!');
+        return redirect()->route('admin.data-uploads.show', $payment->submission_id)->with('success', 'Pembayaran diverifikasi! Silakan upload data untuk pengajuan ini.');
     }
 
     // Manajemen Upload File Data Pengajuan (admin upload ke submission user)

@@ -38,6 +38,16 @@
             <span class="font-medium">Kelola Pembayaran</span>
         </a>
 
+        <a href="{{ route('admin.data-uploads.index') }}" id="nav-data-uploads"
+            class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
+            <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                    clip-rule="evenodd"></path>
+            </svg>
+            <span class="font-medium">Upload Data</span>
+        </a>
+
         <a href="{{ route('admin.guidelines') }}" id="nav-guidelines"
             class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
