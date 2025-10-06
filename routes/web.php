@@ -19,11 +19,25 @@ Route::middleware('auth')->group(function () {
 
         // Fitur sidebar
         Route::get('/submissions', [AdminController::class, 'submissions'])->name('submissions');
+        Route::get('/submissions/{submission}', [AdminController::class, 'showSubmission'])->name('submissions.show');
+        Route::post('/submissions/{submission}/approve', [AdminController::class, 'approveSubmission'])->name('submissions.approve');
+        Route::post('/submissions/{submission}/reject', [AdminController::class, 'rejectSubmission'])->name('submissions.reject');
         Route::post('/submissions/{submissionId}/upload-file', [AdminController::class, 'uploadFileData'])->name('upload.file');
         Route::get('/ebilling', [AdminController::class, 'ebilling'])->name('ebilling');
         Route::post('/payments/{id}/verify', [AdminController::class, 'verifyPayment'])->name('verify.payment');
         Route::get('/archives', [AdminController::class, 'archives'])->name('archives');
         Route::get('/users', [AdminController::class, 'users'])->name('users');
+
+        // Guidelines management
+        Route::resource('guidelines', GuidelineController::class)->names([
+            'index' => 'guidelines',
+            'create' => 'guidelines.create',
+            'store' => 'guidelines.store',
+            'show' => 'guidelines.show',
+            'edit' => 'guidelines.edit',
+            'update' => 'guidelines.update',
+            'destroy' => 'guidelines.destroy'
+        ]);
     });
 
     // USER

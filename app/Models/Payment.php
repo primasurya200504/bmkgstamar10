@@ -10,14 +10,24 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'ebilling_file',
-        'proof_file',
+        'submission_id',
+        'amount',
+        'payment_proof',
+        'payment_method',
+        'payment_reference',
         'status',
+        'paid_at',
+        'verified_at',
+        'verified_by',
     ];
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->hasOneThrough(User::class, Submission::class, 'id', 'id', 'submission_id', 'user_id');
+    }
+
+    public function submission()
+    {
+        return $this->belongsTo(Submission::class);
     }
 }

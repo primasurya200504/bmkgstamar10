@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Submission; // Untuk manajemen pengajuan
 use App\Models\Payment;    // Untuk eBilling
 use App\Models\Archive;    // Untuk pengarsipan
@@ -28,6 +30,48 @@ class AdminController extends Controller
         return view('admin.submissions.index', compact('submissions'));
     }
 
+    // Show submission detail
+    public function showSubmission(Submission $submission)
+    {
+        $submission->load('user', 'files', 'guideline');
+        return view('admin.submissions.show', compact('submission'));
+    }
+
+    // Approve submission
+    public function approveSubmission(Request $request, Submission $submission)
+    {
+        $submission->update(['status' => 'Diterima']);
+
+        // Create payment record for e-billing if guideline has fee
+        if ($submission->guideline && $submission->guideline->fee > 0) {
+            Payment::create([
+                'submission_id' => $submission->id,
+                'amount' => $submission->guideline->fee,
+                'status' => 'pending',
+            ]);
+        }
+
+        return redirect()->route('admin.submissions')->with('success', 'Pengajuan berhasil diverifikasi!');
+    }
+
+    // Reject submission
+    public function rejectSubmission(Request $request, Submission $submission)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $submission->update([
+            'status' => 'Ditolak',
+            'rejection_note' => $request->reason
+        ]);
+
+        // Send email notification to user (if mail is configured)
+        // Mail::to($submission->user->email)->send(new SubmissionRejected($submission));
+
+        return redirect()->route('admin.submissions')->with('success', 'Pengajuan berhasil ditolak!');
+    }
+
     // Manajemen Upload eBilling (upload & verifikasi)
     public function ebilling()
     {
@@ -39,7 +83,15 @@ class AdminController extends Controller
     {
         $payment = Payment::findOrFail($id);
         $payment->status = 'verified';
+        $payment->verified_at = now();
+        $payment->verified_by = Auth::id();
         $payment->save();
+
+        // Update submission status to indicate payment is verified and ready for document upload
+        if ($payment->submission) {
+            $payment->submission->update(['status' => 'Diproses']);
+        }
+
         return redirect()->back()->with('success', 'Pembayaran diverifikasi!');
     }
 
@@ -51,7 +103,13 @@ class AdminController extends Controller
         $file = $request->file('file_data');
         $path = $file->store('submission_files', 'public');
         // Simpan ke model SubmissionFile atau Archive
-        $submission->files()->create(['path' => $path, 'type' => 'admin_data']);
+        $submission->files()->create([
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_type' => $file->getMimeType(),
+            'file_size' => $file->getSize(),
+            'document_name' => 'File dari Admin'
+        ]);
         return redirect()->back()->with('success', 'File dikirim ke user!');
     }
 

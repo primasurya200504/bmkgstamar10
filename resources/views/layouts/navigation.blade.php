@@ -8,7 +8,7 @@
     </div>
 
     <nav class="flex-1 px-6 py-8 space-y-3">
-        <a href="#dashboard" id="nav-dashboard"
+        <a href="{{ route('admin.dashboard') }}" id="nav-dashboard"
             class="flex items-center px-4 py-3 text-white bg-white bg-opacity-20 rounded-xl hover:bg-opacity-30 transition-all duration-200 backdrop-blur-sm">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -18,7 +18,7 @@
             <span class="font-medium">Dashboard</span>
         </a>
 
-        <a href="#submissions" id="nav-submissions"
+        <a href="{{ route('admin.submissions') }}" id="nav-submissions"
             class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
@@ -28,7 +28,7 @@
             <span class="font-medium">Kelola Pengajuan</span>
         </a>
 
-        <a href="#payments" id="nav-payments"
+        <a href="{{ route('admin.ebilling') }}" id="nav-payments"
             class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
@@ -38,7 +38,7 @@
             <span class="font-medium">Kelola Pembayaran</span>
         </a>
 
-        <a href="#guidelines" id="nav-guidelines"
+        <a href="{{ route('admin.guidelines') }}" id="nav-guidelines"
             class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
@@ -48,7 +48,7 @@
             <span class="font-medium">Kelola Panduan</span>
         </a>
 
-        <a href="#users" id="nav-users"
+        <a href="{{ route('admin.users') }}" id="nav-users"
             class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
@@ -57,7 +57,7 @@
             <span class="font-medium">Kelola Pengguna</span>
         </a>
 
-        <a href="#archives" id="nav-archives"
+        <a href="{{ route('admin.archives') }}" id="nav-archives"
             class="flex items-center px-4 py-3 text-white hover:bg-white hover:bg-opacity-20 rounded-xl transition-all duration-200">
             <svg class="w-6 h-6 mr-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
