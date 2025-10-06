@@ -13,22 +13,17 @@ Route::get('/', function () {
 });
 
 Route::middleware('auth')->group(function () {
-    // ADMIN
-    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
-        // Satu route utama untuk dashboard dengan semua section
-        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    // Admin routes (integrasi dengan user, tapi protected admin middleware)
+    Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard'); // 1 route utama
 
-        // Routes untuk actions spesifik (POST/GET tambahan)
-        Route::post('/submissions/{id}/verify', [AdminController::class, 'verifySubmission'])->name('submission.verify');
-        Route::post('/submissions/{id}/reject', [AdminController::class, 'rejectSubmission'])->name('submission.reject');
-        Route::post('/payments/{id}/upload-ebilling', [AdminController::class, 'uploadEbilling'])->name('payment.uploadEbilling');
-        Route::post('/payments/{id}/verify', [AdminController::class, 'verifyPayment'])->name('payment.verify');
-        Route::post('/uploads/{id}', [AdminController::class, 'uploadFileToUser'])->name('upload.file');
-        Route::get('/archives/download', [AdminController::class, 'downloadArchive'])->name('archive.download');
-
-        // Resource routes untuk manajemen panduan dan pengguna
-        Route::resource('guidelines', GuidelineController::class);
-        Route::post('/users/store', [AdminController::class, 'storeUser'])->name('users.store'); // Custom untuk add user
+        // Fitur sidebar
+        Route::get('/submissions', [AdminController::class, 'submissions'])->name('submissions');
+        Route::post('/submissions/{submissionId}/upload-file', [AdminController::class, 'uploadFileData'])->name('upload.file');
+        Route::get('/ebilling', [AdminController::class, 'ebilling'])->name('ebilling');
+        Route::post('/payments/{id}/verify', [AdminController::class, 'verifyPayment'])->name('verify.payment');
+        Route::get('/archives', [AdminController::class, 'archives'])->name('archives');
+        Route::get('/users', [AdminController::class, 'users'])->name('users');
     });
 
     // USER

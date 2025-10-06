@@ -31,8 +31,18 @@ class Archive extends Model
         });
     }
 
-    public function application()
+    public function submission()
     {
-        return $this->belongsTo(Application::class);
+        return $this->belongsTo(Submission::class, 'application_id');
+    }
+
+    public function files()
+    {
+        return $this->hasMany(SubmissionFile::class, 'submission_id', 'application_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
