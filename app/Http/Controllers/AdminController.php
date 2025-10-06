@@ -10,11 +10,6 @@ use App\Models\User;       // Untuk manajemen pengguna
 
 class AdminController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('admin'); // Pastikan middleware aktif
-    }
-
     // Dashboard utama (1 view saja)
     public function dashboard()
     {
