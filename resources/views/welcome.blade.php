@@ -411,6 +411,12 @@
             right: 20%;
         }
 
+        #pengaduan-dan-saran {
+            top: 70%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
 
         @media (max-width: 768px) {
             .feature-bubble {
