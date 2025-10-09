@@ -10,7 +10,8 @@ class Archive extends Model
     use HasFactory;
 
     protected $fillable = [
-        'application_id',
+        'submission_id',
+        'user_id',
         'archive_date',
         'notes'
     ];
@@ -33,12 +34,12 @@ class Archive extends Model
 
     public function submission()
     {
-        return $this->belongsTo(Submission::class, 'application_id');
+        return $this->belongsTo(Submission::class);
     }
 
     public function files()
     {
-        return $this->hasMany(SubmissionFile::class, 'submission_id', 'application_id');
+        return $this->hasMany(SubmissionFile::class);
     }
 
     public function user()

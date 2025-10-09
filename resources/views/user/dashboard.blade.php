@@ -504,7 +504,7 @@
                                     class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200">
                                     <option value="">Pilih jenis layanan yang diinginkan</option>
                                     @if (isset($guidelines))
-                                    @foreach ($guidelines as $guideline)
+                                        @foreach ($guidelines as $guideline)
                                             <option value="{{ $guideline->id }}" data-type="{{ $guideline->type }}"
                                                 data-fee="{{ $guideline->fee ?? 0 }}"
                                                 data-documents='{!! json_encode(safe_json_decode($guideline->required_documents, [])) !!}'>
@@ -593,7 +593,8 @@
                             <select id="statusFilter"
                                 class="p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500">
                                 <option value="">Semua Status</option>
-                                <option value="pending">Pending</option>
+                                <option value="pending">Menunggu Review</option>
+                                <option value="Diproses">Menunggu Upload e-Billing</option>
                                 <option value="verified">Terverifikasi</option>
                                 <option value="payment_pending">Menunggu Pembayaran</option>
                                 <option value="paid">Sudah Bayar</option>
@@ -810,6 +811,49 @@
                         class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200">
                         Upload Bukti Pembayaran
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Files Modal -->
+    <div id="uploadModal"
+        class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 w-full max-w-2xl mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Upload File Tambahan</h3>
+                <button onclick="hideModal('uploadModal')" class="text-gray-500 hover:text-gray-700 p-2">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-sm text-gray-600">Upload file tambahan untuk pengajuan yang ditolak. Pastikan file sudah diperbaiki sesuai dengan alasan penolakan.</p>
+            </div>
+
+            <form id="uploadForm" class="space-y-6">
+                @csrf
+                <input type="hidden" id="uploadSubmissionId" name="submission_id">
+
+                <div id="fileFields">
+                    <!-- File fields will be added here by JavaScript -->
+                </div>
+
+                <div class="flex justify-between">
+                    <button type="button" onclick="addFileField()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                        Tambah File
+                    </button>
+                    <div class="space-x-2">
+                        <button type="button" onclick="hideModal('uploadModal')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Batal
+                        </button>
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                            Upload File
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -1075,8 +1119,10 @@
                     tbody.innerHTML = data.data.map(submission => {
                         const statusConfig = {
                             'pending': 'bg-yellow-100 text-yellow-800',
+                            'Diproses': 'bg-indigo-100 text-indigo-800',
                             'verified': 'bg-blue-100 text-blue-800',
                             'payment_pending': 'bg-orange-100 text-orange-800',
+                            'proof_uploaded': 'bg-blue-100 text-blue-800',
                             'paid': 'bg-purple-100 text-purple-800',
                             'processing': 'bg-indigo-100 text-indigo-800',
                             'completed': 'bg-green-100 text-green-800',
@@ -1097,8 +1143,31 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="status-badge ${statusConfig[submission.status] || 'bg-gray-100 text-gray-800'}">
-                                        ${getStatusText(submission.status)}
+                                    <span class="status-badge ${
+                                        (() => {
+                                            let statusText = getStatusText(submission.status);
+                                            let statusClass = statusConfig[submission.status] || 'bg-gray-100 text-gray-800';
+                                            if (submission.payment && submission.payment.rejection_reason) {
+                                                statusText = 'Ditolak - Menunggu Upload Ulang';
+                                                statusClass = 'bg-red-100 text-red-800';
+                                            } else if (submission.status === 'payment_pending' && (!submission.payment || !submission.payment.e_billing_path)) {
+                                                statusText = 'Menunggu Verifikasi';
+                                                statusClass = 'bg-blue-100 text-blue-800';
+                                            }
+                                            return statusClass;
+                                        })()
+                                    }">
+                                        ${
+                                            (() => {
+                                                let statusText = getStatusText(submission.status);
+                                                if (submission.payment && submission.payment.rejection_reason) {
+                                                    statusText = 'Ditolak - Menunggu Upload Ulang';
+                                                } else if (submission.status === 'payment_pending' && (!submission.payment || !submission.payment.e_billing_path)) {
+                                                    statusText = 'Menunggu Verifikasi';
+                                                }
+                                                return statusText;
+                                            })()
+                                        }
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1109,11 +1178,32 @@
                                         <button onclick="showDetail(${submission.id})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
                                             Detail
                                         </button>
-                                        ${submission.status === 'payment_pending' && submission.guideline ? `
-                                                            <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
-                                                                Bayar
-                                                            </button>
-                                                        ` : ''}
+                                        ${submission.status === 'rejected' ? `
+                                                                    <button onclick="alert('Alasan Penolakan: ${submission.rejection_note}')" class="text-red-600 hover:text-red-900 transition-colors ml-2">
+                                                                        Kesalahan
+                                                                    </button>
+                                                                    <button onclick="showUploadModal(${submission.id})" class="text-blue-600 hover:text-blue-900 transition-colors ml-2">
+                                                                        Upload File
+                                                                    </button>
+                                                                    <button onclick="resubmitSubmission(${submission.id})" class="text-green-600 hover:text-green-900 transition-colors ml-2">
+                                                                        Kirim Ulang
+                                                                    </button>
+                                                                ` : ''}
+                                        ${submission.status === 'payment_pending' && submission.guideline && submission.payment && submission.payment.e_billing_path ? `
+                                                                    <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors">
+                                                                        Bayar
+                                                                    </button>
+                                                                ` : ''}
+                                        ${submission.payment && submission.payment.rejection_reason ? `
+                                                                    <button onclick="showPaymentModal(${submission.id}, ${submission.guideline.fee || 0})" class="text-green-600 hover:text-green-900 transition-colors ml-2">
+                                                                        Upload Ulang Bukti
+                                                                    </button>
+                                                                ` : ''}
+                                        ${submission.status !== 'completed' && submission.payment && submission.payment.e_billing_path ? `
+                                                                    <a href="/storage/${submission.payment.e_billing_path}" target="_blank" class="text-blue-600 hover:text-blue-900 transition-colors">
+                                                                        e-Billing
+                                                                    </a>
+                                                                ` : ''}
                                     </div>
                                 </td>
                             </tr>
@@ -1165,14 +1255,29 @@
         function getStatusText(status) {
             const statusTexts = {
                 'pending': 'Menunggu Review',
+                'Diproses': 'Menunggu Upload e-Billing',
                 'verified': 'Terverifikasi',
                 'payment_pending': 'Menunggu Pembayaran',
+                'proof_uploaded': 'Bukti Pembayaran Diupload - Menunggu Verifikasi',
                 'paid': 'Sudah Bayar',
                 'processing': 'Sedang Diproses',
                 'completed': 'Selesai',
                 'rejected': 'Ditolak'
             };
             return statusTexts[status] || status;
+        }
+
+        function getStatusBadgeClass(status) {
+            const statusClasses = {
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'verified': 'bg-blue-100 text-blue-800',
+                'payment_pending': 'bg-orange-100 text-orange-800',
+                'paid': 'bg-purple-100 text-purple-800',
+                'processing': 'bg-indigo-100 text-indigo-800',
+                'completed': 'bg-green-100 text-green-800',
+                'rejected': 'bg-red-100 text-red-800'
+            };
+            return statusClasses[status] || 'bg-gray-100 text-gray-800';
         }
 
         function selectGuideline(guidelineId) {
@@ -1184,10 +1289,227 @@
             }
         }
 
-        // Placeholder functions for other features
+        // Download file function
+        function downloadFile(submissionId, fileId) {
+            const link = document.createElement('a');
+            link.href = `/user/submissions/${submissionId}/files/${fileId}/download`;
+            link.download = ''; // This will use the filename from the server
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Show submission detail in modal
         async function showDetail(submissionId) {
-            // Implementation for showing submission detail
-            console.log('Show detail for submission:', submissionId);
+            try {
+                const response = await fetch(`/user/submissions/${submissionId}`, {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content')
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const data = result.data;
+                    const modalContent = document.getElementById('modalContent');
+
+                    modalContent.innerHTML = `
+                        <div class="space-y-6">
+                            <!-- Header -->
+                            <div class="border-b pb-4">
+                                <h3 class="text-xl font-bold text-gray-900">Detail Pengajuan ${data.submission_number}</h3>
+                                <p class="text-sm text-gray-500 mt-1">Dibuat pada ${data.created_at}</p>
+                            </div>
+
+                            <!-- Status -->
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-700">Status:</span>
+                                    <span class="px-3 py-1 text-sm font-semibold rounded-full ${getStatusBadgeClass(data.status)}">
+                                        ${data.status_label}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Rejection Reason (if rejected) -->
+                            ${data.status === 'rejected' && data.rejection_note ? `
+                                        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                                            <h4 class="text-sm font-semibold text-red-900 mb-2">Alasan Penolakan</h4>
+                                            <p class="text-sm text-red-800 mb-3">${data.rejection_note}</p>
+                                            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                                <p class="text-sm text-blue-800 mb-3">
+                                                    <strong>Petunjuk:</strong> Anda dapat mengupload file tambahan atau mengirim ulang pengajuan ini.
+                                                </p>
+                                                <div class="flex space-x-2">
+                                                    <button onclick="showUploadModal(${data.id})" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded">
+                                                        Upload File Tambahan
+                                                    </button>
+                                                    <button onclick="resubmitSubmission(${data.id})" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded">
+                                                        Kirim Ulang Pengajuan
+                                                    </button>
+                                                    <button onclick="showSection('submit')" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-2 px-3 rounded">
+                                                        Buat Pengajuan Baru
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                            <!-- Guideline Info -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <h4 class="font-semibold text-gray-900 mb-2">Informasi Layanan</h4>
+                                    <div class="space-y-2 text-sm">
+                                        <p><span class="font-medium">Jenis:</span> ${data.guideline.title}</p>
+                                        <p><span class="font-medium">Tipe:</span> ${data.guideline.type === 'pnbp' ? 'PNBP (Berbayar)' : 'Non-PNBP (Gratis)'}</p>
+                                        ${data.guideline.fee > 0 ? `<p><span class="font-medium">Biaya:</span> Rp ${new Intl.NumberFormat('id-ID').format(data.guideline.fee)}</p>` : ''}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="font-semibold text-gray-900 mb-2">Periode Data</h4>
+                                    <div class="space-y-2 text-sm">
+                                        <p><span class="font-medium">Mulai:</span> ${data.start_date ? new Date(data.start_date).toLocaleDateString('id-ID') : 'N/A'}</p>
+                                        <p><span class="font-medium">Akhir:</span> ${data.end_date ? new Date(data.end_date).toLocaleDateString('id-ID') : 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Purpose -->
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-2">Tujuan Penggunaan</h4>
+                                <p class="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">${data.purpose}</p>
+                            </div>
+
+                            <!-- Payment Info (if exists) -->
+                            ${data.payment ? `
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900 mb-2">Informasi Pembayaran</h4>
+                                            <div class="bg-blue-50 p-4 rounded-lg">
+                                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                                    <div>
+                                                        <p><span class="font-medium">Jumlah:</span> Rp ${new Intl.NumberFormat('id-ID').format(data.payment.amount)}</p>
+                                                        <p><span class="font-medium">Status:</span> ${data.payment.status === 'verified' ? 'Terverifikasi' : data.payment.status === 'uploaded' ? 'Menunggu Verifikasi' : 'Pending'}</p>
+                                                    </div>
+                                                    <div>
+                                                        ${data.payment.method ? `<p><span class="font-medium">Metode:</span> ${data.payment.method}</p>` : ''}
+                                                        ${data.payment.reference ? `<p><span class="font-medium">Referensi:</span> ${data.payment.reference}</p>` : ''}
+                                                        ${data.payment.paid_at ? `<p><span class="font-medium">Dibayar:</span> ${data.payment.paid_at}</p>` : ''}
+                                                    </div>
+                                                </div>
+                                                ${data.payment.e_billing_path ? `
+                                            <div class="mt-4 pt-4 border-t border-blue-200">
+                                                <h5 class="font-medium text-blue-900 mb-2">File e-Billing dari Admin</h5>
+                                                <div class="flex items-center justify-between bg-white p-3 rounded-lg">
+                                                    <div class="flex items-center space-x-3">
+                                                        <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                                                        </svg>
+                                                        <div>
+                                                            <p class="text-sm font-medium text-gray-900">${data.payment.e_billing_filename || 'e-Billing.pdf'}</p>
+                                                            <p class="text-xs text-gray-500">Diupload oleh Admin</p>
+                                                        </div>
+                                                    </div>
+                                                    <a href="/storage/${data.payment.e_billing_path}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded">
+                                                        Download
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                                ${data.payment.rejection_reason ? `
+                                            <div class="mt-4 pt-4 border-t border-red-200">
+                                                <h5 class="font-medium text-red-900 mb-2">Alasan Penolakan Pembayaran</h5>
+                                                <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                                                    <p class="text-sm text-red-800">${data.payment.rejection_reason}</p>
+                                                    <p class="text-xs text-red-600 mt-2">Silakan upload ulang bukti pembayaran yang sesuai.</p>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                            <!-- Uploaded Files (if any) -->
+                            ${data.uploaded_files && data.uploaded_files.length > 0 ? `
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900 mb-2">Dokumen yang Diupload</h4>
+                                            <div class="space-y-2">
+                                                ${data.uploaded_files.map(file => `
+                                            <div class="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+                                                <div class="flex items-center space-x-3">
+                                                    <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-gray-900">${file.document_name}</p>
+                                                        <p class="text-xs text-gray-500">${file.name} • ${file.size} • Diupload: ${file.uploaded_at}</p>
+                                                    </div>
+                                                </div>
+                                                <a href="#" onclick="downloadFile(${data.id}, ${file.id}); return false;" class="text-blue-600 hover:text-blue-800 text-xs font-medium underline">
+                                                    Download
+                                                </a>
+                                            </div>
+                                        `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                            <!-- Generated Documents (if any) -->
+                            ${data.documents && data.documents.length > 0 ? `
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900 mb-2">Dokumen yang Dihasilkan</h4>
+                                            <div class="space-y-2">
+                                                ${data.documents.map(doc => `
+                                            <div class="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+                                                <div class="flex items-center space-x-3">
+                                                    <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-gray-900">${doc.name}</p>
+                                                        <p class="text-xs text-gray-500">${doc.size}</p>
+                                                    </div>
+                                                </div>
+                                                <a href="${doc.download_url}" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded">
+                                                    Download
+                                                </a>
+                                            </div>
+                                        `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                            <!-- History -->
+                            ${data.histories && data.histories.length > 0 ? `
+                                        <div>
+                                            <h4 class="font-semibold text-gray-900 mb-2">Riwayat Pengajuan</h4>
+                                            <div class="space-y-3">
+                                                ${data.histories.map(history => `
+                                            <div class="border-l-4 border-blue-500 pl-4 py-2">
+                                                <div class="flex items-center justify-between">
+                                                    <h5 class="text-sm font-medium text-gray-900">${history.title}</h5>
+                                                    <span class="text-xs text-gray-500">${history.created_at}</span>
+                                                </div>
+                                                <p class="text-sm text-gray-600 mt-1">${history.description}</p>
+                                                <p class="text-xs text-blue-600 mt-1">Oleh: ${history.actor}</p>
+                                            </div>
+                                        `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                        </div>
+                    `;
+
+                    showModal('detailModal');
+                } else {
+                    alert('Gagal memuat detail pengajuan: ' + (result.message || 'Terjadi kesalahan'));
+                }
+            } catch (error) {
+                console.error('Error loading submission detail:', error);
+                alert('Terjadi kesalahan saat memuat detail pengajuan');
+            }
         }
 
         function showPaymentModal(submissionId, amount) {
@@ -1197,9 +1519,156 @@
         }
 
         async function uploadPayment() {
-            // Implementation for payment upload
-            console.log('Upload payment for submission:', currentSubmissionId);
+            try {
+                const formData = new FormData(document.getElementById('paymentForm'));
+
+                const response = await fetch(`/user/submissions/${currentSubmissionId}/payment`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content')
+                    }
+                });
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert('Bukti pembayaran berhasil diupload! Silakan tunggu verifikasi dari admin.');
+                        hideModal('paymentModal');
+                        document.getElementById('paymentForm').reset();
+                        loadSubmissions(); // Refresh the table
+                    } else {
+                        alert('Gagal upload bukti pembayaran: ' + (result.message || 'Terjadi kesalahan'));
+                    }
+                } else {
+                    // Handle non-JSON response (likely redirect or error page)
+                    if (response.status === 419) {
+                        alert('Sesi telah berakhir. Silakan refresh halaman dan login kembali.');
+                    } else if (response.status === 401) {
+                        alert('Anda tidak memiliki akses. Silakan login kembali.');
+                    } else if (response.status === 404) {
+                        alert('Halaman tidak ditemukan. Silakan refresh halaman.');
+                    } else {
+                        alert('Terjadi kesalahan server. Status: ' + response.status);
+                    }
+                    console.error('Non-JSON response:', response.status, contentType);
+                }
+            } catch (error) {
+                console.error('Error uploading payment:', error);
+                alert('Terjadi kesalahan jaringan saat upload bukti pembayaran. Silakan coba lagi.');
+            }
         }
+
+        // Upload modal functions
+        function showUploadModal(submissionId) {
+            currentSubmissionId = submissionId;
+            document.getElementById('uploadSubmissionId').value = submissionId;
+            // Initialize with one file field
+            document.getElementById('fileFields').innerHTML = `
+                <div class="file-field">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Dokumen</label>
+                    <input type="text" name="document_names[]" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 mb-2" placeholder="Contoh: KTP, Surat Pengantar, dll" required>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">File Dokumen</label>
+                    <input type="file" name="files[]" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" required>
+                    <p class="text-xs text-gray-500 mt-1">Format: PDF, DOC, DOCX, JPG, PNG (Max 5MB)</p>
+                </div>
+            `;
+            showModal('uploadModal');
+        }
+
+        function addFileField() {
+            const fileFields = document.getElementById('fileFields');
+            const newField = document.createElement('div');
+            newField.className = 'file-field mt-4 pt-4 border-t border-gray-200';
+            newField.innerHTML = `
+                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Dokumen</label>
+                <input type="text" name="document_names[]" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 mb-2" placeholder="Contoh: KTP, Surat Pengantar, dll" required>
+                <label class="block text-sm font-medium text-gray-700 mb-2">File Dokumen</label>
+                <input type="file" name="files[]" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500" required>
+                <p class="text-xs text-gray-500 mt-1">Format: PDF, DOC, DOCX, JPG, PNG (Max 5MB)</p>
+            `;
+            fileFields.appendChild(newField);
+        }
+
+        async function uploadFiles() {
+            try {
+                const formData = new FormData(document.getElementById('uploadForm'));
+
+                const response = await fetch(`/user/submissions/${currentSubmissionId}/upload-files`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('File berhasil diupload!');
+                    hideModal('uploadModal');
+                    document.getElementById('uploadForm').reset();
+                    // Refresh the detail modal if it's open
+                    if (!document.getElementById('detailModal').classList.contains('hidden')) {
+                        showDetail(currentSubmissionId);
+                    }
+                    loadSubmissions(); // Refresh the table
+                } else {
+                    alert('Gagal upload file: ' + (result.message || 'Terjadi kesalahan'));
+                }
+            } catch (error) {
+                console.error('Error uploading files:', error);
+                alert('Terjadi kesalahan saat upload file');
+            }
+        }
+
+        async function resubmitSubmission(submissionId) {
+            if (!confirm('Apakah Anda yakin ingin mengirim ulang pengajuan ini? Status akan kembali ke "Menunggu Review".')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/user/submissions/${submissionId}/resubmit`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Pengajuan berhasil dikirim ulang!');
+                    hideModal('detailModal');
+                    loadSubmissions(); // Refresh the table
+                } else {
+                    alert('Gagal mengirim ulang pengajuan: ' + (result.message || 'Terjadi kesalahan'));
+                }
+            } catch (error) {
+                console.error('Error resubmitting submission:', error);
+                alert('Terjadi kesalahan saat mengirim ulang pengajuan');
+            }
+        }
+
+        // Setup upload form handler
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeNavigation();
+            loadSubmissions();
+            setupFormHandlers();
+
+            const uploadForm = document.getElementById('uploadForm');
+            if (uploadForm) {
+                uploadForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    await uploadFiles();
+                });
+            }
+        });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {

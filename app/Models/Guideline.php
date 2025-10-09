@@ -20,8 +20,8 @@ class Guideline extends Model
 
     protected $casts = [
         'fee' => 'decimal:2',
-        'is_active' => 'boolean',
-        'required_documents' => 'array' // CASTING KE ARRAY
+        'is_active' => 'boolean'
+        // Removed 'required_documents' => 'array' to use accessor for safe handling
     ];
 
     // Accessor untuk required_documents yang aman

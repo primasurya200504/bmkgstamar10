@@ -131,10 +131,10 @@
                                             <p class="text-sm text-gray-600">{{ $document->document_type }} • {{ number_format($document->file_size / 1024, 1) }} KB • Diupload: {{ $document->created_at->format('d/m/Y H:i') }}</p>
                                         </div>
                                         <div class="flex space-x-2">
-                                            <a href="{{ route('admin.data-uploads.download', $document->id) }}"
+                                            <button onclick="downloadDocument({{ $document->id }})"
                                                class="bg-green-500 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
                                                 Download
-                                            </a>
+                                            </button>
                                             <form action="{{ route('admin.data-uploads.delete', $document->id) }}" method="POST" class="inline">
                                                 @csrf
                                                 @method('DELETE')
@@ -168,7 +168,7 @@
                                             <p class="text-sm text-gray-600">{{ $file->file_type }} • {{ number_format($file->file_size / 1024, 1) }} KB</p>
                                         </div>
                                         <div class="flex space-x-2">
-                                            <a href="{{ Storage::url($file->file_path) }}" target="_blank"
+                                            <a href="{{ route('admin.data-uploads.file.view', ['submissionId' => $submission->id, 'fileId' => $file->id]) }}" target="_blank"
                                                class="bg-blue-500 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
                                                 Lihat
                                             </a>
@@ -183,4 +183,16 @@
         </div>
     </div>
 </div>
+
+<script>
+function downloadDocument(documentId) {
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a');
+    link.href = `/admin/data-uploads/${documentId}/download`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
 @endsection

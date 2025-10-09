@@ -14,6 +14,7 @@ class GeneratedDocument extends Model
         'document_path',
         'document_name',
         'document_type',
+        'file_name',
         'file_size',
         'mime_type',
         'uploaded_by'

@@ -19,6 +19,8 @@ class Payment extends Model
         'paid_at',
         'verified_at',
         'verified_by',
+        'e_billing_path',
+        'e_billing_filename',
     ];
 
     public function user()

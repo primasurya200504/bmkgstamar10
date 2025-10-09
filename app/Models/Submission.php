@@ -60,6 +60,11 @@ class Submission extends Model
         return $this->hasMany(GeneratedDocument::class);
     }
 
+    public function archives()
+    {
+        return $this->hasMany(Archive::class);
+    }
+
     /**
      * Log history for this submission
      */

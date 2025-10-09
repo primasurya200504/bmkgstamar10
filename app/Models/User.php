@@ -22,7 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'phone',
+        'phone_number',
         'email_verified_at'
     ];
 
@@ -55,6 +55,14 @@ class User extends Authenticatable
     public function submissions()
     {
         return $this->hasMany(Submission::class, 'user_id');
+    }
+
+    /**
+     * Relationship dengan Teacher
+     */
+    public function teacher()
+    {
+        return $this->hasOne(Teacher::class);
     }
 
     /**

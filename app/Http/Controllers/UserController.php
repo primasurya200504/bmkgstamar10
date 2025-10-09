@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class UserController extends Controller
@@ -133,9 +134,13 @@ class UserController extends Controller
                         'status' => $submission->status,
                         'type' => $guideline ? $guideline->type : 'non_pnbp', // Untuk filtering di frontend
                         'created_at' => $submission->created_at->format('d/m/Y'),
+                        'rejection_note' => $submission->rejection_note ?: '',
                         'payment' => $submission->payment ? [
                             'amount' => $submission->payment->amount,
-                            'status' => $submission->payment->status
+                            'status' => $submission->payment->status,
+                            'rejection_reason' => $submission->payment->rejection_reason ?: null,
+                            'e_billing_path' => $submission->payment->e_billing_path,
+                            'e_billing_filename' => $submission->payment->e_billing_filename
                         ] : null
                     ];
                 });
@@ -161,66 +166,158 @@ class UserController extends Controller
     public function getSubmission($id)
     {
         try {
+            Log::info('Loading submission detail', ['submission_id' => $id, 'user_id' => Auth::id()]);
+
             $user = Auth::user();
             $submission = Submission::where('user_id', $user->id)
                 ->where('id', $id)
-                ->with(['guideline', 'payment', 'histories.actor', 'generatedDocuments'])
-                ->firstOrFail();
+                ->with(['guideline', 'payment', 'histories' => function($query) {
+                    $query->with(['actor' => function($q) {
+                        $q->select('id', 'name');
+                    }])->orderBy('created_at', 'desc')->limit(10);
+                }, 'generatedDocuments' => function($query) {
+                    $query->orderBy('created_at', 'desc')->limit(10);
+                }, 'files' => function($query) {
+                    $query->orderBy('created_at', 'desc')->limit(10);
+                }])
+                ->first();
+
+            if (!$submission) {
+                Log::warning('Submission not found for user', ['submission_id' => $id, 'user_id' => $user->id]);
+                return response()->json(['success' => false, 'message' => 'Pengajuan tidak ditemukan'], 404);
+            }
+
+            Log::info('Submission found', ['submission_id' => $submission->id, 'status' => $submission->status]);
 
             $guideline = $submission->guideline;
+
+            // Safe handling for guideline data
+            $guidelineData = [
+                'title' => 'N/A',
+                'description' => 'N/A',
+                'type' => 'non_pnbp',
+                'fee' => 0,
+                'required_documents' => []
+            ];
+
+            if ($guideline) {
+                $guidelineData = [
+                    'title' => $guideline->title ?: 'N/A',
+                    'description' => Str::limit($guideline->description ?: 'N/A', 300),
+                    'type' => $guideline->type ?: 'non_pnbp',
+                    'fee' => $guideline->fee ?: 0
+                ];
+            }
+
             // Format data untuk response
             $submissionData = [
                 'id' => $submission->id,
-                'submission_number' => $submission->submission_number,
-                'guideline' => [
-                    'title' => $guideline ? $guideline->title : 'N/A',
-                    'description' => $guideline ? $guideline->description : 'N/A',
-                    'type' => $guideline ? $guideline->type : 'non_pnbp',
-                    'fee' => $guideline ? $guideline->fee : 0,
-                    'required_documents' => $guideline ? safe_json_decode($guideline->required_documents, []) : []
-                ],
-                'purpose' => $submission->purpose,
-                'start_date' => $submission->start_date,
-                'end_date' => $submission->end_date,
-                'status' => $submission->status,
-                'status_label' => $this->getStatusLabel($submission->status),
-                'created_at' => $submission->created_at->format('d/m/Y H:i'),
-                'payment' => $submission->payment ? [
-                    'amount' => $submission->payment->amount,
-                    'status' => $submission->payment->status,
-                    'method' => $submission->payment->payment_method,
-                    'reference' => $submission->payment->payment_reference,
-                    'paid_at' => $submission->payment->paid_at ? $submission->payment->paid_at->format('d/m/Y H:i') : null
-                ] : null,
-                'documents' => $submission->generatedDocuments->map(function ($doc) {
+                'submission_number' => $submission->submission_number ?: 'SUB-' . str_pad($submission->id, 4, '0', STR_PAD_LEFT),
+                'guideline' => $guidelineData,
+                'purpose' => Str::limit($submission->purpose ?: '', 500),
+                'start_date' => $this->safeDateFormat($submission->start_date, 'Y-m-d') ?: '',
+                'end_date' => $this->safeDateFormat($submission->end_date, 'Y-m-d') ?: '',
+                'status' => $submission->status ?: 'pending',
+                'status_label' => $this->getStatusLabel($submission->status ?: 'pending'),
+                'created_at' => $this->safeDateFormat($submission->created_at, 'd/m/Y H:i') ?: now()->format('d/m/Y H:i'),
+                'payment' => null,
+                'uploaded_files' => [],
+                'documents' => [],
+                'histories' => []
+            ];
+
+            // Safe payment data handling
+            if ($submission->payment) {
+                $submissionData['payment'] = [
+                    'amount' => $submission->payment->amount ?: 0,
+                    'status' => $submission->payment->status ?: 'pending',
+                    'method' => $submission->payment->payment_method ?: null,
+                    'reference' => $submission->payment->payment_reference ?: null,
+                    'paid_at' => $this->safeDateFormat($submission->payment->paid_at, 'd/m/Y H:i'),
+                    'e_billing_path' => $submission->payment->e_billing_path ?: null,
+                    'e_billing_filename' => $submission->payment->e_billing_filename ?: null
+                ];
+            }
+
+            // Safe uploaded files handling
+            if ($submission->files) {
+                $submissionData['uploaded_files'] = $submission->files->filter(function ($file) {
+                    return $file->id && $file->file_path;
+                })->map(function ($file) use ($submission) {
+                    try {
+                        return [
+                            'id' => $file->id,
+                            'name' => Str::limit($file->file_name ?: 'Unknown', 100),
+                            'document_name' => Str::limit($file->document_name ?: 'Document', 100),
+                            'type' => $file->file_type ?: 'application/octet-stream',
+                            'size' => $this->formatFileSize($file->file_size ?: 0),
+                            'download_url' => route('submission.file.download', ['submissionId' => $submission->id, 'fileId' => $file->id]),
+                            'uploaded_at' => $this->safeDateFormat($file->created_at, 'd/m/Y H:i') ?: now()->format('d/m/Y H:i')
+                        ];
+                    } catch (\Exception $routeException) {
+                        Log::warning('Error generating download URL for file', [
+                            'file_id' => $file->id,
+                            'submission_id' => $submission->id,
+                            'error' => $routeException->getMessage()
+                        ]);
+                        return [
+                            'id' => $file->id,
+                            'name' => Str::limit($file->file_name ?: 'Unknown', 100),
+                            'document_name' => Str::limit($file->document_name ?: 'Document', 100),
+                            'type' => $file->file_type ?: 'application/octet-stream',
+                            'size' => $this->formatFileSize($file->file_size ?: 0),
+                            'download_url' => '#',
+                            'uploaded_at' => $this->safeDateFormat($file->created_at, 'd/m/Y H:i') ?: now()->format('d/m/Y H:i')
+                        ];
+                    }
+                })->toArray();
+            }
+
+            // Safe generated documents handling
+            if ($submission->generatedDocuments) {
+                $submissionData['documents'] = $submission->generatedDocuments->filter(function ($doc) {
+                    return $doc->id && $doc->document_path;
+                })->map(function ($doc) use ($submission) {
                     return [
                         'id' => $doc->id,
-                        'name' => $doc->document_name,
-                        'type' => $doc->document_type,
-                        'size' => $this->formatFileSize($doc->file_size),
-                        'url' => Storage::url($doc->document_path)
+                        'name' => Str::limit($doc->document_name ?: 'Document', 100),
+                        'type' => $doc->document_type ?: 'Unknown',
+                        'size' => $this->formatFileSize($doc->file_size ?: 0),
+                        'download_url' => '/storage/' . $doc->document_path
                     ];
-                }),
-                'histories' => $submission->histories->map(function ($history) {
+                })->toArray();
+            }
+
+            // Safe histories handling
+            if ($submission->histories) {
+                $submissionData['histories'] = $submission->histories->map(function ($history) {
                     return [
-                        'title' => $history->title,
-                        'description' => $history->description,
-                        'actor' => $history->actor ? $history->actor->name : 'System',
-                        'created_at' => $history->created_at->format('d/m/Y H:i')
+                        'title' => $history->title ?: 'Unknown Action',
+                        'description' => Str::limit($history->description ?: 'No description', 200),
+                        'actor' => $history->actor ? $history->actor->name : ($history->actor_type === 'admin' ? 'Admin' : 'System'),
+                        'created_at' => $this->safeDateFormat($history->created_at, 'd/m/Y H:i') ?: now()->format('d/m/Y H:i')
                     ];
-                })
-            ];
+                })->toArray();
+            }
+
+            Log::info('Submission detail loaded successfully', ['submission_id' => $submission->id]);
 
             return response()->json([
                 'success' => true,
                 'data' => $submissionData
             ]);
         } catch (\Exception $e) {
-            Log::error('Error loading submission detail: ' . $e->getMessage());
+            Log::error('Error loading submission detail', [
+                'submission_id' => $id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Submission not found'
-            ], 404);
+                'message' => 'Error loading submission details: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -330,9 +427,11 @@ class UserController extends Controller
     /**
      * Upload Payment Proof - FIXED nama method sesuai route
      */
-    public function uploadPaymentProof(Request $request, $id)
+    public function uploadPayment(Request $request, $id)
     {
         try {
+            Log::info('Starting payment upload', ['submission_id' => $id, 'user_id' => Auth::id()]);
+
             $request->validate([
                 'payment_method' => 'required|string',
                 'payment_reference' => 'nullable|string',
@@ -344,24 +443,42 @@ class UserController extends Controller
                 ->where('id', $id)
                 ->firstOrFail();
 
+            Log::info('Found submission', ['submission_id' => $submission->id, 'status' => $submission->status]);
+
             $payment = Payment::where('submission_id', $submission->id)->firstOrFail();
+
+            Log::info('Found payment record', ['payment_id' => $payment->id, 'status' => $payment->status]);
 
             DB::beginTransaction();
 
+            // Check if file was uploaded
+            if (!$request->hasFile('payment_proof')) {
+                throw new \Exception('File bukti pembayaran tidak ditemukan');
+            }
+
+            $file = $request->file('payment_proof');
+            Log::info('File details', [
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize()
+            ]);
+
             // Upload payment proof
-            $proofPath = $request->file('payment_proof')->store('payments/' . $submission->id, 'public');
+            $proofPath = $file->store('payments/' . $submission->id, 'public');
+            Log::info('File stored at', ['path' => $proofPath]);
 
             // Update payment
             $payment->update([
                 'payment_method' => $request->payment_method,
                 'payment_reference' => $request->payment_reference,
                 'payment_proof' => $proofPath,
-                'status' => 'uploaded',
-                'paid_at' => now()
+                'status' => 'proof_uploaded',
+                'paid_at' => now(),
+                'rejection_reason' => null // Clear rejection reason after successful upload
             ]);
 
-            // Update submission status
-            $submission->update(['status' => 'paid']);
+            // Update submission status to indicate proof has been uploaded but needs admin verification
+            $submission->update(['status' => 'proof_uploaded']);
 
             // Create history
             SubmissionHistory::create([
@@ -381,9 +498,20 @@ class UserController extends Controller
                 'success' => true,
                 'message' => 'Bukti pembayaran berhasil diupload'
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error uploading payment', ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . implode(', ', collect($e->errors())->flatten()->toArray())
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error uploading payment: ' . $e->getMessage());
+            Log::error('Error uploading payment', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'submission_id' => $id,
+                'user_id' => Auth::id()
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -610,12 +738,239 @@ class UserController extends Controller
 
             Log::info('Document downloaded', ['document_id' => $document->id, 'user_id' => $user->id]);
 
-            return response()->download($filePath, $document->document_name);
+            return response()->download($filePath, $document->document_name, [
+                'Content-Type' => $document->mime_type ?: mime_content_type($filePath),
+                'Content-Disposition' => 'attachment; filename="' . $document->document_name . '"'
+            ]);
         } catch (\Exception $e) {
             Log::error('Error downloading document: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mendownload dokumen'
+            ], 500);
+        }
+    }
+
+    /**
+     * Download Generated Document
+     */
+    public function downloadGeneratedDocument($submissionId, $documentId)
+    {
+        try {
+            $user = Auth::user();
+
+            // Get document through user's submissions
+            $document = GeneratedDocument::whereHas('submission', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })->where('id', $documentId)->firstOrFail();
+
+            if (!$document->document_path || !Storage::disk('public')->exists($document->document_path)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan'
+                ], 404);
+            }
+
+            // Use the actual filename from storage path to ensure correct extension
+            $downloadName = $document->file_name ?: basename($document->document_path);
+
+            $filePath = storage_path('app/public/' . $document->document_path);
+
+            Log::info('Generated document downloaded', [
+                'document_id' => $document->id,
+                'submission_id' => $submissionId,
+                'user_id' => $user->id
+            ]);
+
+            return response()->download($filePath, $downloadName, [
+                'Content-Type' => $document->mime_type ?: mime_content_type($filePath),
+                'Content-Disposition' => 'attachment; filename="' . $downloadName . '"'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error downloading generated document: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mendownload dokumen'
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload Files to Existing Submission (for rejected submissions)
+     */
+    public function uploadFilesToSubmission(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'files.*' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120',
+                'document_names.*' => 'required|string|max:255'
+            ]);
+
+            $user = Auth::user();
+            $submission = Submission::where('user_id', $user->id)
+                ->where('id', $id)
+                ->firstOrFail();
+
+            // Only allow uploading to rejected submissions
+            if ($submission->status !== 'rejected') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya pengajuan yang ditolak yang dapat diupload ulang'
+                ], 403);
+            }
+
+            $uploadedFiles = $request->file('files', []);
+            $documentNames = $request->input('document_names', []);
+
+            DB::beginTransaction();
+
+            foreach ($uploadedFiles as $index => $file) {
+                $documentName = $documentNames[$index] ?? 'Dokumen ' . ($index + 1);
+                $path = $file->store('submissions/' . $submission->id, 'public');
+
+                // Create file record
+                SubmissionFile::create([
+                    'submission_id' => $submission->id,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'file_type' => $file->getClientMimeType(),
+                    'file_size' => $file->getSize(),
+                    'document_name' => $documentName
+                ]);
+            }
+
+            // Log history
+            SubmissionHistory::create([
+                'submission_id' => $submission->id,
+                'actor_id' => $user->id,
+                'actor_type' => 'user',
+                'action' => 'files_uploaded',
+                'title' => 'File Ditambahkan',
+                'description' => 'User menambahkan file baru ke pengajuan yang ditolak'
+            ]);
+
+            DB::commit();
+
+            Log::info('Files uploaded to rejected submission', [
+                'submission_id' => $submission->id,
+                'user_id' => $user->id,
+                'files_count' => count($uploadedFiles)
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File berhasil diupload'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error uploading files to submission: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal upload file: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Resubmit Rejected Submission
+     */
+    public function resubmitSubmission(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            $submission = Submission::where('user_id', $user->id)
+                ->where('id', $id)
+                ->firstOrFail();
+
+            // Only allow resubmitting rejected submissions
+            if ($submission->status !== 'rejected') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya pengajuan yang ditolak yang dapat dikirim ulang'
+                ], 403);
+            }
+
+            DB::beginTransaction();
+
+            // Update submission status
+            $submission->update([
+                'status' => 'pending',
+                'rejection_note' => null // Clear rejection note
+            ]);
+
+            // Log history
+            SubmissionHistory::create([
+                'submission_id' => $submission->id,
+                'actor_id' => $user->id,
+                'actor_type' => 'user',
+                'action' => 'resubmitted',
+                'title' => 'Pengajuan Dikirim Ulang',
+                'description' => 'User mengirim ulang pengajuan yang sebelumnya ditolak'
+            ]);
+
+            DB::commit();
+
+            Log::info('Submission resubmitted', [
+                'submission_id' => $submission->id,
+                'user_id' => $user->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pengajuan berhasil dikirim ulang'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error resubmitting submission: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengirim ulang pengajuan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download Uploaded File
+     */
+    public function downloadUploadedFile($submissionId, $fileId)
+    {
+        try {
+            $user = Auth::user();
+
+            // Get submission and ensure it belongs to the user
+            $submission = Submission::where('user_id', $user->id)
+                ->where('id', $submissionId)
+                ->firstOrFail();
+
+            // Get the specific file from the submission
+            $file = $submission->files()->where('id', $fileId)->firstOrFail();
+
+            $filePath = storage_path('app/public/' . $file->file_path);
+
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan'
+                ], 404);
+            }
+
+            Log::info('Uploaded file downloaded', [
+                'submission_id' => $submission->id,
+                'file_id' => $file->id,
+                'user_id' => $user->id
+            ]);
+
+            return response()->download($filePath, $file->file_name, [
+                'Content-Type' => $file->file_type ?: mime_content_type($filePath),
+                'Content-Disposition' => 'attachment; filename="' . $file->file_name . '"'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error downloading uploaded file: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mendownload file'
             ], 500);
         }
     }
@@ -669,9 +1024,11 @@ class UserController extends Controller
     private function getStatusLabel($status)
     {
         $labels = [
-            'pending' => 'Menunggu Verifikasi',
+            'pending' => 'Menunggu Review',
+            'Diproses' => 'Menunggu Upload e-Billing',
             'verified' => 'Terverifikasi',
             'payment_pending' => 'Menunggu Pembayaran',
+            'proof_uploaded' => 'Bukti Pembayaran Diupload - Menunggu Verifikasi',
             'paid' => 'Pembayaran Diterima',
             'processing' => 'Sedang Diproses',
             'completed' => 'Selesai',
@@ -704,6 +1061,9 @@ class UserController extends Controller
      */
     private function formatFileSize($bytes)
     {
+        if ($bytes === null || $bytes == 0) {
+            return '0 bytes';
+        }
         if ($bytes >= 1073741824) {
             return number_format($bytes / 1073741824, 2) . ' GB';
         } elseif ($bytes >= 1048576) {
@@ -712,6 +1072,19 @@ class UserController extends Controller
             return number_format($bytes / 1024, 2) . ' KB';
         } else {
             return $bytes . ' bytes';
+        }
+    }
+
+    /**
+     * Safely format date
+     */
+    private function safeDateFormat($date, $format)
+    {
+        if (!$date) return null;
+        try {
+            return \Carbon\Carbon::parse($date)->format($format);
+        } catch (\Exception $e) {
+            return null;
         }
     }
 }

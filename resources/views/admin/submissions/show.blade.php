@@ -17,11 +17,11 @@
                 <!-- Submission Status -->
                 <div class="mb-6">
                     <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
-                        @if($submission->status == 'Menunggu') bg-yellow-100 text-yellow-800
-                        @elseif($submission->status == 'Diterima') bg-green-100 text-green-800
-                        @elseif($submission->status == 'Ditolak') bg-red-100 text-red-800
+                        @if($submission->status == 'pending') bg-yellow-100 text-yellow-800
+                        @elseif($submission->status == 'verified') bg-green-100 text-green-800
+                        @elseif($submission->status == 'rejected') bg-red-100 text-red-800
                         @elseif($submission->status == 'Diproses') bg-blue-100 text-blue-800
-                        @elseif($submission->status == 'Selesai') bg-green-100 text-green-800
+                        @elseif($submission->status == 'completed') bg-green-100 text-green-800
                         @else bg-gray-100 text-gray-800 @endif">
                         Status: {{ $submission->status }}
                     </span>
@@ -34,11 +34,11 @@
                         <dl class="space-y-3">
                             <div>
                                 <dt class="text-sm font-medium text-gray-500">Nama</dt>
-                                <dd class="mt-1 text-sm text-gray-900">{{ $submission->user->name }}</dd>
+                                <dd class="mt-1 text-sm text-gray-900">{{ $submission->user->name ?? 'N/A' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-sm font-medium text-gray-500">Email</dt>
-                                <dd class="mt-1 text-sm text-gray-900">{{ $submission->user->email }}</dd>
+                                <dd class="mt-1 text-sm text-gray-900">{{ $submission->user->email ?? 'N/A' }}</dd>
                             </div>
                             <div>
                                 <dt class="text-sm font-medium text-gray-500">No HP</dt>
@@ -93,7 +93,14 @@
                     <h3 class="text-lg font-medium text-gray-900 mb-4">File yang Diupload</h3>
                     @php
                         $files = $submission->files ?? collect();
-                        $documents = $submission->documents ? json_decode($submission->documents, true) : [];
+                        $documents = [];
+                        if ($submission->documents) {
+                            if (is_string($submission->documents)) {
+                                $documents = json_decode($submission->documents, true) ?: [];
+                            } elseif (is_array($submission->documents)) {
+                                $documents = $submission->documents;
+                            }
+                        }
                         $hasFiles = $files->count() > 0 || count($documents) > 0;
                     @endphp
 
@@ -109,7 +116,7 @@
                                                 <p class="text-xs text-gray-400">{{ $file->fileSizeHuman }}</p>
                                             @endif
                                         </div>
-                                        <a href="{{ Storage::url($file->file_path) }}" target="_blank"
+                                        <a href="#" onclick="downloadFile({{ $submission->id }}, {{ $file->id }}); return false;"
                                            class="bg-blue-500 hover:bg-blue-700 text-white text-xs font-bold py-1 px-2 rounded ml-2">
                                             Download
                                         </a>
@@ -143,7 +150,7 @@
                 </div>
 
                 <!-- Rejection Reason (if rejected) -->
-                @if($submission->status == 'Ditolak' && $submission->rejection_note)
+                @if($submission->status == 'rejected' && $submission->rejection_note)
                     <div class="mb-8">
                         <h3 class="text-lg font-medium text-red-900 mb-4">Alasan Penolakan</h3>
                         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -153,19 +160,27 @@
                 @endif
 
                 <!-- Action Buttons (only for pending submissions) -->
-                @if($submission->status == 'Menunggu')
+                @if($submission->status == 'pending')
                     <div class="flex space-x-4">
-                        <!-- Approve Button -->
+                        <!-- Verify Button -->
+                        <form action="{{ route('admin.submissions.verify', $submission) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                                Verifikasi
+                            </button>
+                        </form>
+
+                        <!-- Process Button -->
                         <form action="{{ route('admin.submissions.approve', $submission) }}" method="POST" class="inline">
                             @csrf
-                            <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                                Verifikasi Pengajuan
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                Proses
                             </button>
                         </form>
 
                         <!-- Reject Button -->
                         <button onclick="openRejectModal()" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                            Tolak Pengajuan
+                            Tolak
                         </button>
                     </div>
                 @endif
@@ -199,6 +214,16 @@
 </div>
 
 <script>
+// Download file function
+function downloadFile(submissionId, fileId) {
+    const link = document.createElement('a');
+    link.href = `/admin/submissions/${submissionId}/files/${fileId}/download`;
+    link.download = ''; // This will use the filename from the server
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function openRejectModal() {
     document.getElementById('rejectModal').classList.remove('hidden');
 }

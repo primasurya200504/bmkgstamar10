@@ -1,0 +1,391 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Submission; // Untuk manajemen pengajuan
+use App\Models\Payment;    // Untuk eBilling
+use App\Models\Archive;    // Untuk pengarsipan
+use App\Models\User;       // Untuk manajemen pengguna
+
+class AdminController extends Controller
+{
+    // Dashboard utama (1 view saja)
+    public function dashboard()
+    {
+        $submissions = Submission::with('user')->latest()->take(10)->get(); // Contoh data pengajuan
+        $payments = Payment::with('user')->where('status', 'pending')->get(); // Pembayaran pending
+        $users = User::select('id', 'email', 'phone')->latest()->get(); // List user
+        $archives = Archive::with('submission')->latest()->take(5)->get(); // Arsip terbaru
+
+        return view('admin.dashboard', compact('submissions', 'payments', 'users', 'archives'));
+    }
+
+    // Manajemen Pengajuan (list & approve/reject)
+    public function submissions()
+    {
+        $submissions = Submission::with('user', 'files')->paginate(10);
+        return view('admin.submissions.index', compact('submissions'));
+    }
+
+    // Show submission detail
+    public function showSubmission(Submission $submission)
+    {
+        $submission->load('user', 'files', 'guideline');
+        return view('admin.submissions.show', compact('submission'));
+    }
+
+    // Verify submission - move to payments management
+    public function verifySubmission(Request $request, Submission $submission)
+    {
+        $submission->update(['status' => 'Diproses']);
+        return redirect()->route('admin.ebilling')->with('success', 'Pengajuan berhasil diverifikasi! Pengajuan telah dipindahkan ke kelola pembayaran.');
+    }
+
+    // Approve submission - all submissions go to e-billing upload
+    public function approveSubmission(Request $request, Submission $submission)
+    {
+        $submission->update(['status' => 'Diproses']);
+        return redirect()->route('admin.ebilling.upload')->with('success', 'Pengajuan berhasil diproses! Silakan upload dokumen yang diperlukan untuk pengajuan ini.');
+    }
+
+    // Reject submission
+    public function rejectSubmission(Request $request, Submission $submission)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $submission->update([
+            'status' => 'Ditolak',
+            'rejection_note' => $request->reason
+        ]);
+
+        // Send email notification to user (if mail is configured)
+        // Mail::to($submission->user->email)->send(new SubmissionRejected($submission));
+
+        return redirect()->route('admin.submissions')->with('success', 'Pengajuan berhasil ditolak!');
+    }
+
+    // eBilling management - show PNBP submissions ready for e-billing upload
+    public function ebilling()
+    {
+        $pnlpSubmissions = Submission::with('user', 'guideline')
+            ->where('status', 'Diproses')
+            ->whereHas('guideline', function($query) {
+                $query->where('fee', '>', 0);
+            })
+            ->paginate(10);
+
+        $payments = Payment::with('submission.user', 'submission.guideline')
+            ->whereIn('status', ['pending', 'uploaded'])
+            ->paginate(10);
+
+        return view('admin.payments.index', compact('pnlpSubmissions', 'payments'));
+    }
+
+    // Upload e-Billing/Document page - for all processed submissions
+    public function uploadEBillingPage()
+    {
+        $submissions = Submission::with('user', 'guideline')
+            ->where('status', 'Diproses')
+            ->paginate(10);
+
+        return view('admin.ebilling', compact('submissions'));
+    }
+
+    public function verifyPayment(Request $request, $id)
+    {
+        $payment = Payment::findOrFail($id);
+        $payment->status = 'verified';
+        $payment->verified_at = now();
+        $payment->verified_by = Auth::id();
+        $payment->save();
+
+        // Update submission status to indicate payment is verified and ready for document upload
+        if ($payment->submission) {
+            $payment->submission->update(['status' => 'verified']);
+        }
+
+        return redirect()->route('admin.data-uploads.show', $payment->submission_id)->with('success', 'Pembayaran diverifikasi! Pengajuan telah dipindahkan ke upload data.');
+    }
+
+    // Upload e-billing/document for a submission
+    public function uploadEBilling(Request $request, Submission $submission)
+    {
+        $request->validate([
+            'e_billing_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120'
+        ]);
+
+        $file = $request->file('e_billing_file');
+        $path = $file->store('e_billing', 'public');
+
+        if ($submission->guideline && $submission->guideline->fee > 0) {
+            // PNBP submission - create payment record with e-billing
+            $payment = Payment::updateOrCreate(
+                ['submission_id' => $submission->id],
+                [
+                    'amount' => $submission->guideline->fee,
+                    'status' => 'pending',
+                    'e_billing_path' => $path,
+                    'e_billing_filename' => $file->getClientOriginalName(),
+                ]
+            );
+
+            // Update submission status to payment_pending
+            $submission->update(['status' => 'payment_pending']);
+
+            return redirect()->back()->with('success', 'e-Billing berhasil diupload! User dapat melakukan pembayaran.');
+        } else {
+            // Non-PNBP submission - just update status to allow data upload
+            $submission->update(['status' => 'verified']);
+
+            // Store the uploaded document as a regular file
+            $submission->files()->create([
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'file_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'document_name' => 'Dokumen Verifikasi Admin'
+            ]);
+
+            return redirect()->route('admin.data-uploads.show', $submission->id)->with('success', 'Dokumen berhasil diupload! Pengajuan telah dipindahkan ke upload data.');
+        }
+    }
+
+    // Reject payment
+    public function rejectPayment(Request $request, $id)
+    {
+        $payment = Payment::findOrFail($id);
+
+        $request->validate([
+            'reject_reason' => 'required|string|max:500'
+        ]);
+
+        $payment->update([
+            'status' => 'rejected',
+            'rejection_reason' => $request->reject_reason
+        ]);
+
+        // Update submission status back to processed so admin can upload new e-billing
+        if ($payment->submission) {
+            $payment->submission->update(['status' => 'Diproses']);
+        }
+
+        return redirect()->back()->with('success', 'Pembayaran berhasil ditolak!');
+    }
+
+    // Manajemen Upload File Data Pengajuan (admin upload ke submission user)
+    public function uploadFileData(Request $request, $submissionId)
+    {
+        $submission = Submission::findOrFail($submissionId);
+        // Logic upload file (gunakan Storage::putFile)
+        $file = $request->file('file_data');
+        $path = $file->store('submission_files', 'public');
+        // Simpan ke model SubmissionFile atau Archive
+        $submission->files()->create([
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_type' => $file->getMimeType(),
+            'file_size' => $file->getSize(),
+            'document_name' => 'File dari Admin'
+        ]);
+        return redirect()->back()->with('success', 'File dikirim ke user!');
+    }
+
+    // Manajemen Pengarsipan (list semua proses & file)
+    public function archives()
+    {
+        // Get all completed submissions (status 'Selesai')
+        $completedSubmissions = Submission::with(['user', 'generatedDocuments'])
+            ->where('status', 'Selesai')
+            ->get()
+            ->map(function ($submission) {
+                // Create a pseudo-archive object for completed submissions
+                return (object) [
+                    'id' => $submission->id,
+                    'submission' => $submission,
+                    'user' => $submission->user,
+                    'archive_date' => $submission->updated_at,
+                    'created_at' => $submission->created_at,
+                    'is_archive' => false // Flag to distinguish from actual Archive records
+                ];
+            });
+
+        // Get actual Archive records
+        $archiveRecords = Archive::with(['submission.generatedDocuments', 'user'])
+            ->get()
+            ->map(function ($archive) {
+                $archive->is_archive = true; // Flag for actual Archive records
+                return $archive;
+            });
+
+        // Combine and sort by creation date (newest first)
+        $allArchives = $completedSubmissions->concat($archiveRecords)
+            ->sortByDesc('created_at')
+            ->values();
+
+        // Paginate the combined collection
+        $perPage = 10;
+        $currentPage = request()->get('page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+        $archives = new \Illuminate\Pagination\LengthAwarePaginator(
+            $allArchives->slice($offset, $perPage),
+            $allArchives->count(),
+            $perPage,
+            $currentPage,
+            ['path' => request()->url(), 'pageName' => 'page']
+        );
+
+        return view('admin.archives.index', compact('archives'));
+    }
+
+    // Manajemen Pengguna (list email & no HP)
+    public function users()
+    {
+        $users = User::select('id', 'name', 'email', 'phone')->paginate(20);
+        return view('admin.users.index', compact('users'));
+    }
+
+
+
+
+
+    // Download uploaded file by admin
+    public function downloadUploadedFile($submissionId, $fileId)
+    {
+        try {
+            // Get submission
+            $submission = Submission::findOrFail($submissionId);
+
+            // Get the specific file from the submission
+            $file = $submission->files()->where('id', $fileId)->firstOrFail();
+
+            $filePath = storage_path('app/public/' . $file->file_path);
+
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File tidak ditemukan'
+                ], 404);
+            }
+
+            return response()->download($filePath, $file->file_name);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mendownload file'
+            ], 500);
+        }
+    }
+}
+        / /   G e t   a r c h i v e   d e t a i l   w i t h   h i s t o r y 
+         p u b l i c   f u n c t i o n   g e t A r c h i v e D e t a i l ( \ ) 
+         { 
+                 t r y   { 
+                         / /   F i r s t   t r y   t o   f i n d   a s   A r c h i v e   r e c o r d 
+                         \   =   A r c h i v e : : w i t h ( [ 
+                                 ' s u b m i s s i o n . u s e r ' , 
+                                 ' s u b m i s s i o n . g u i d e l i n e ' , 
+                                 ' s u b m i s s i o n . p a y m e n t ' , 
+                                 ' s u b m i s s i o n . g e n e r a t e d D o c u m e n t s ' , 
+                                 ' s u b m i s s i o n . h i s t o r i e s '   = >   f u n c t i o n ( \ )   { 
+                                         \ - > o r d e r B y ( ' c r e a t e d _ a t ' ,   ' d e s c ' ) ; 
+                                 } 
+                         ] ) - > f i n d ( \ ) ; 
+ 
+                         i f   ( ! \ )   { 
+                                 / /   I f   n o t   f o u n d   a s   A r c h i v e ,   t r y   a s   c o m p l e t e d   s u b m i s s i o n 
+                                 \   =   S u b m i s s i o n : : w i t h ( [ 
+                                         ' u s e r ' , 
+                                         ' g u i d e l i n e ' , 
+                                         ' p a y m e n t ' , 
+                                         ' g e n e r a t e d D o c u m e n t s ' , 
+                                         ' h i s t o r i e s '   = >   f u n c t i o n ( \ )   { 
+                                                 \ - > o r d e r B y ( ' c r e a t e d _ a t ' ,   ' d e s c ' ) ; 
+                                         } 
+                                 ] ) - > w h e r e ( ' s t a t u s ' ,   ' S e l e s a i ' ) - > f i n d ( \ ) ; 
+ 
+                                 i f   ( ! \ )   { 
+                                         r e t u r n   r e s p o n s e ( ) - > j s o n ( [ 
+                                                 ' s u c c e s s '   = >   f a l s e , 
+                                                 ' m e s s a g e '   = >   ' A r s i p   t i d a k   d i t e m u k a n ' 
+                                         ] ,   4 0 4 ) ; 
+                                 } 
+ 
+                                 / /   C r e a t e   p s e u d o - a r c h i v e   o b j e c t 
+                                 \   =   ( o b j e c t )   [ 
+                                         ' i d '   = >   \ - > i d , 
+                                         ' s u b m i s s i o n '   = >   \ , 
+                                         ' u s e r '   = >   \ - > u s e r , 
+                                         ' a r c h i v e _ d a t e '   = >   \ - > u p d a t e d _ a t , 
+                                         ' c r e a t e d _ a t '   = >   \ - > c r e a t e d _ a t , 
+                                         ' i s _ a r c h i v e '   = >   f a l s e 
+                                 ] ; 
+                         } 
+ 
+                         / /   F o r m a t   h i s t o r i e s   f o r   d i s p l a y 
+                         \   =   \ - > s u b m i s s i o n - > h i s t o r i e s - > m a p ( f u n c t i o n ( \ )   { 
+                                 r e t u r n   [ 
+                                         ' t i t l e '   = >   \ - > t i t l e , 
+                                         ' d e s c r i p t i o n '   = >   \ - > d e s c r i p t i o n , 
+                                         ' c r e a t e d _ a t '   = >   \ - > c r e a t e d _ a t - > f o r m a t ( ' d / m / Y   H : i ' ) , 
+                                         ' a c t o r _ t y p e '   = >   \ - > a c t o r _ t y p e , 
+                                         ' a c t o r '   = >   \ - > a c t o r _ t y p e   = = =   ' a d m i n '   ?   ' A d m i n '   :   ( \ - > a c t o r _ i d   ?   ' U s e r '   :   ' S y s t e m ' ) 
+                                 ] ; 
+                         } ) ; 
+ 
+                         r e t u r n   r e s p o n s e ( ) - > j s o n ( [ 
+                                 ' s u c c e s s '   = >   t r u e , 
+                                 ' a r c h i v e '   = >   [ 
+                                         ' i d '   = >   \ - > i d , 
+                                         ' s u b m i s s i o n '   = >   [ 
+                                                 ' i d '   = >   \ - > s u b m i s s i o n - > i d , 
+                                                 ' s u b m i s s i o n _ n u m b e r '   = >   \ - > s u b m i s s i o n - > s u b m i s s i o n _ n u m b e r   ? ?   ' S U B - '   .   s t r _ p a d ( \ - > s u b m i s s i o n - > i d ,   4 ,   ' 0 ' ,   S T R _ P A D _ L E F T ) , 
+                                                 ' t y p e '   = >   \ - > s u b m i s s i o n - > t y p e , 
+                                                 ' p u r p o s e '   = >   \ - > s u b m i s s i o n - > p u r p o s e , 
+                                                 ' s t a r t _ d a t e '   = >   \ - > s u b m i s s i o n - > s t a r t _ d a t e ? - > f o r m a t ( ' d / m / Y ' ) , 
+                                                 ' e n d _ d a t e '   = >   \ - > s u b m i s s i o n - > e n d _ d a t e ? - > f o r m a t ( ' d / m / Y ' ) , 
+                                                 ' c r e a t e d _ a t '   = >   \ - > s u b m i s s i o n - > c r e a t e d _ a t - > f o r m a t ( ' d / m / Y   H : i ' ) , 
+                                                 ' a d m i n _ n o t e s '   = >   \ - > s u b m i s s i o n - > a d m i n _ n o t e s , 
+                                                 ' u s e r '   = >   \ - > s u b m i s s i o n - > u s e r   ?   [ 
+                                                         ' n a m e '   = >   \ - > s u b m i s s i o n - > u s e r - > n a m e , 
+                                                         ' e m a i l '   = >   \ - > s u b m i s s i o n - > u s e r - > e m a i l , 
+                                                         ' p h o n e '   = >   \ - > s u b m i s s i o n - > u s e r - > p h o n e 
+                                                 ]   :   n u l l , 
+                                                 ' g u i d e l i n e '   = >   \ - > s u b m i s s i o n - > g u i d e l i n e   ?   [ 
+                                                         ' t i t l e '   = >   \ - > s u b m i s s i o n - > g u i d e l i n e - > t i t l e , 
+                                                         ' f e e '   = >   \ - > s u b m i s s i o n - > g u i d e l i n e - > f e e 
+                                                 ]   :   n u l l , 
+                                                 ' p a y m e n t '   = >   \ - > s u b m i s s i o n - > p a y m e n t   ?   [ 
+                                                         ' a m o u n t '   = >   \ - > s u b m i s s i o n - > p a y m e n t - > a m o u n t , 
+                                                         ' s t a t u s '   = >   \ - > s u b m i s s i o n - > p a y m e n t - > s t a t u s , 
+                                                         ' p a y m e n t _ m e t h o d '   = >   \ - > s u b m i s s i o n - > p a y m e n t - > p a y m e n t _ m e t h o d , 
+                                                         ' p a y m e n t _ r e f e r e n c e '   = >   \ - > s u b m i s s i o n - > p a y m e n t - > p a y m e n t _ r e f e r e n c e , 
+                                                         ' p a i d _ a t '   = >   \ - > s u b m i s s i o n - > p a y m e n t - > p a i d _ a t ? - > f o r m a t ( ' d / m / Y   H : i ' ) 
+                                                 ]   :   n u l l , 
+                                                 ' g e n e r a t e d _ d o c u m e n t s '   = >   \ - > s u b m i s s i o n - > g e n e r a t e d D o c u m e n t s - > m a p ( f u n c t i o n ( \ )   { 
+                                                         r e t u r n   [ 
+                                                                 ' i d '   = >   \ - > i d , 
+                                                                 ' d o c u m e n t _ n a m e '   = >   \ - > d o c u m e n t _ n a m e , 
+                                                                 ' c r e a t e d _ a t '   = >   \ - > c r e a t e d _ a t ? - > f o r m a t ( ' d / m / Y   H : i ' ) 
+                                                         ] ; 
+                                                 } ) 
+                                         ] , 
+                                         ' a r c h i v e _ d a t e '   = >   \ - > a r c h i v e _ d a t e ? - > f o r m a t ( ' d / m / Y   H : i ' ) , 
+                                         ' c r e a t e d _ a t '   = >   \ - > c r e a t e d _ a t - > f o r m a t ( ' d / m / Y   H : i ' ) , 
+                                         ' i s _ a r c h i v e '   = >   \ - > i s _ a r c h i v e   ? ?   t r u e 
+                                 ] , 
+                                 ' h i s t o r i e s '   = >   \ 
+                         ] ) ; 
+ 
+                 }   c a t c h   ( \ E x c e p t i o n   \ )   { 
+                         r e t u r n   r e s p o n s e ( ) - > j s o n ( [ 
+                                 ' s u c c e s s '   = >   f a l s e , 
+                                 ' m e s s a g e '   = >   ' T e r j a d i   k e s a l a h a n :   '   .   \ - > g e t M e s s a g e ( ) 
+                         ] ,   5 0 0 ) ; 
+                 } 
+         }  
+ 
