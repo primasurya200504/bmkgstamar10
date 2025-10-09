@@ -538,6 +538,10 @@
                 <i class="fas fa-question-circle feature-bubble-icon"></i>
                 <span class="feature-bubble-text">FAQ</span>
             </a>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLScn6JdMB9vaASfy1ImfaNVld2AAjh4Sf8oVZh0yOPIT20c92Q/viewform?uid=108069731218267343512&pli=1" id="pengaduan-dan-saran" class="feature-bubble absolute" target="_blank">
+                <i class="fas fa-comment-dots feature-bubble-icon"></i>
+                <span class="feature-bubble-text">Pengaduan Dan Saran</span>
+            </a>
         </div>
     </div>
 
