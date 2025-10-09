@@ -430,6 +430,22 @@
                 margin-top: 1rem;
             }
         }
+
+        /* Animation for welcome text */
+        .animate-fade-in {
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 
@@ -476,6 +492,13 @@
             <img src="img/logo.png" alt="Logo BMKG" class="w-32 h-32 sm:w-45 sm:h-48">
         </div>
 
+        <!-- Welcome Text with Animation -->
+        <div class="welcome-text z-50 mt-4 text-center" style="display: none;">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white animate-fade-in">
+                Selamat Datang di Stasiun Meteorologi Maritim Pontianak
+            </h1>
+        </div>
+
         <!-- Container untuk bubble fitur -->
         <div id="bubbles-container" class="absolute w-full h-full top-0 left-0">
             <!-- Bubble fitur -->
@@ -501,12 +524,17 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const logo = document.getElementById('logo-main');
+            const welcomeText = document.querySelector('.welcome-text');
             const bubbles = document.querySelectorAll('.feature-bubble');
             let bubblesVisible = false;
 
             // Animasikan logo untuk muncul saat halaman dimuat
             setTimeout(() => {
                 logo.classList.add('active');
+                // Animasikan teks selamat datang setelah logo
+                setTimeout(() => {
+                    welcomeText.style.display = 'block';
+                }, 1000);
             }, 500);
 
             // Tambahkan event listener ke logo untuk menampilkan/menyembunyikan bubble
