@@ -335,6 +335,36 @@
 
     </div>
 
+    <!-- Footer -->
+    <footer class="mt-12 py-8">
+        <div class="content-card">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h4 class="text-xl font-bold mb-4">BMKG Stasiun Meteorologi Maritim Pontianak</h4>
+                    <p class="text-sm">Menyediakan informasi cuaca, iklim, dan geofisika untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold mb-4">Kontak Kami</h4>
+                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Jl. Adisucipto No. 1, Pontianak</p>
+                    <p class="text-sm"><i class="fas fa-phone mr-2"></i>(0561) 123456</p>
+                    <p class="text-sm"><i class="fas fa-envelope mr-2"></i>info@bmkg-pontianak.go.id</p>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold mb-4">Tautan</h4>
+                    <ul class="text-sm space-y-2">
+                        <li><a href="/beranda" class="hover:text-blue-300">Beranda</a></li>
+                        <li><a href="/profil-kami" class="hover:text-blue-300">Profil Kami</a></li>
+                        <li><a href="/faq" class="hover:text-blue-300">FAQ</a></li>
+                        <li><a href="/login" class="hover:text-blue-300">Login</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-white/20 mt-8 pt-4 text-center">
+                <p class="text-sm">&copy; 2024 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
     <script>
         function toggleFAQ(element) {
             const faqItem = element.parentElement;
