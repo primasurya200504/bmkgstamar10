@@ -107,6 +107,24 @@
             animation: movePlane 35s linear infinite;
         }
 
+        /* Animasi Teks Mengikuti Pesawat */
+        .follow-plane {
+            position: absolute;
+            top: 15%;
+            left: -250px;
+            animation: movePlane 35s linear infinite;
+            animation-delay: 3s; /* Delay agar mengikuti di belakang */
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        .follow-plane h1 {
+            transform: scaleX(0.8) scaleY(0.8) rotate(5deg);
+            color: white;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
         @keyframes movePlane {
             0% {
                 transform: translateX(0);
@@ -441,6 +459,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -489,14 +508,12 @@
         <!-- Logo BMKG, tambahkan z-index agar selalu di atas dan bisa diklik -->
         <div class="logo-container z-50" id="logo-main">
             <!-- Menggunakan logo BMKG yang berbeda dari sumber lain -->
-            <img src="img/logo.png" alt="Logo BMKG" class="w-32 h-32 sm:w-45 sm:h-48">
+            <img src="img/logo.png" alt="Logo BMKG" class="sm:w-45 sm:h-48">
         </div>
 
-        <!-- Welcome Text with Animation -->
-        <div class="welcome-text z-50 mt-4 text-center" style="display: none;">
-            <h1 class="text-2xl sm:text-4xl font-bold text-white animate-fade-in">
-                Selamat Datang di Stasiun Meteorologi Maritim Pontianak
-            </h1>
+        <!-- Welcome Text Following Plane -->
+        <div class="follow-plane" style="display: none;">
+            <h1>Selamat Datang di Stasiun Meteorologi Maritim Pontianak</h1>
         </div>
 
         <!-- Container untuk bubble fitur -->
@@ -524,16 +541,16 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const logo = document.getElementById('logo-main');
-            const welcomeText = document.querySelector('.welcome-text');
+            const followPlane = document.querySelector('.follow-plane');
             const bubbles = document.querySelectorAll('.feature-bubble');
             let bubblesVisible = false;
 
             // Animasikan logo untuk muncul saat halaman dimuat
             setTimeout(() => {
                 logo.classList.add('active');
-                // Animasikan teks selamat datang setelah logo
+                // Tampilkan teks yang mengikuti pesawat setelah logo
                 setTimeout(() => {
-                    welcomeText.style.display = 'block';
+                    followPlane.style.display = 'block';
                 }, 1000);
             }, 500);
 
