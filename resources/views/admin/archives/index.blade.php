@@ -12,6 +12,38 @@
                     </a>
                 </div>
 
+                <!-- Filter Form -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <form method="GET" action="{{ route('admin.archives') }}" class="flex flex-wrap gap-4 items-end">
+                        <div>
+                            <label for="filter_year" class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                            <select name="year" id="filter_year" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Semua Tahun</option>
+                                @for($y = date('Y'); $y >= 2020; $y--)
+                                    <option value="{{ $y }}" {{ request('year') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter_month" class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                            <select name="month" id="filter_month" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Semua Bulan</option>
+                                @for($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ request('month') == $m ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                Filter
+                            </button>
+                            <a href="{{ route('admin.archives') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                                Reset
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white">
                         <thead class="bg-gray-50">

@@ -240,10 +240,22 @@ class AdminController extends Controller
     // Manajemen Pengarsipan (list semua proses & file)
     public function archives()
     {
+        $year = request('year');
+        $month = request('month');
+
         // Get all completed submissions (status 'completed')
-        $completedSubmissions = Submission::with(['user', 'generatedDocuments'])
-            ->where('status', 'completed')
-            ->get()
+        $completedSubmissionsQuery = Submission::with(['user', 'generatedDocuments'])
+            ->where('status', 'completed');
+
+        // Apply filters to completed submissions
+        if ($year) {
+            $completedSubmissionsQuery->whereYear('updated_at', $year);
+            if ($month) {
+                $completedSubmissionsQuery->whereMonth('updated_at', $month);
+            }
+        }
+
+        $completedSubmissions = $completedSubmissionsQuery->get()
             ->map(function ($submission) {
                 // Create a pseudo-archive object for completed submissions
                 return (object) [
@@ -257,8 +269,17 @@ class AdminController extends Controller
             });
 
         // Get actual Archive records
-        $archiveRecords = Archive::with(['submission.generatedDocuments', 'user'])
-            ->get()
+        $archiveRecordsQuery = Archive::with(['submission.generatedDocuments', 'user']);
+
+        // Apply filters to archive records
+        if ($year) {
+            $archiveRecordsQuery->whereYear('created_at', $year);
+            if ($month) {
+                $archiveRecordsQuery->whereMonth('created_at', $month);
+            }
+        }
+
+        $archiveRecords = $archiveRecordsQuery->get()
             ->map(function ($archive) {
                 $archive->is_archive = true; // Flag for actual Archive records
                 return $archive;
