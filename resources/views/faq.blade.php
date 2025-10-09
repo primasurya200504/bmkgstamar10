@@ -345,9 +345,17 @@
                 </div>
                 <div>
                     <h4 class="text-xl font-bold mb-4">Kontak Kami</h4>
-                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Jl. Adisucipto No. 1, Pontianak</p>
-                    <p class="text-sm"><i class="fas fa-phone mr-2"></i>(0561) 123456</p>
+                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Stasiun Meteorologi Maritim Pontianak, Komplek Pelabuhan Dwikora Pontianak, Pontianak, Indonesia</p>
+                    <p class="text-sm"><i class="fas fa-phone mr-2"></i>0561769906 / 08989111213</p>
                     <p class="text-sm"><i class="fas fa-envelope mr-2"></i>info@bmkg-pontianak.go.id</p>
+                    <div class="mt-4">
+                        <p class="text-sm font-semibold mb-2">Ikuti Kami:</p>
+                        <div class="flex space-x-4">
+                            <a href="https://www.instagram.com/infobmkg.maritimkalbar/" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-instagram text-lg"></i></a>
+                            <a href="https://www.facebook.com/infobmkg.maritimkalbar" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-facebook text-lg"></i></a>
+                            <a href="https://twitter.com/bmkgmaritimpnk" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-twitter text-lg"></i></a>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <h4 class="text-xl font-bold mb-4">Tautan</h4>
