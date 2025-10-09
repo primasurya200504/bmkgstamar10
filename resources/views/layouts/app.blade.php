@@ -54,16 +54,60 @@
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                z-index: 50;
+                transition: left 0.3s ease;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .hamburger {
+                display: block;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .hamburger {
+                display: none;
+            }
+        }
     </style>
 </head>
 
 <body class="flex min-h-screen">
+    <!-- Hamburger Menu for Mobile -->
+    <button class="hamburger fixed top-4 left-4 z-40 bg-blue-600 text-white p-2 rounded-md md:hidden" onclick="toggleSidebar()">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+    </button>
+
     @include('layouts.navigation')
 
     <!-- Main Content -->
     <div class="flex-1 main-content">
         @yield('content')
     </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('open');
+        }
+    </script>
 </body>
 
 </html>

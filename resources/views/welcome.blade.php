@@ -473,13 +473,13 @@
         <!-- Logo BMKG, tambahkan z-index agar selalu di atas dan bisa diklik -->
         <div class="logo-container z-50" id="logo-main">
             <!-- Menggunakan logo BMKG yang berbeda dari sumber lain -->
-            <img src="img/logo.png" alt="Logo BMKG" class="w-45 h-48">
+            <img src="img/logo.png" alt="Logo BMKG" class="w-32 h-32 sm:w-45 sm:h-48">
         </div>
 
         <!-- Container untuk bubble fitur -->
         <div id="bubbles-container" class="absolute w-full h-full top-0 left-0">
             <!-- Bubble fitur -->
-            <a href="#" id="beranda" class="feature-bubble absolute">
+            <a href="/beranda" id="beranda" class="feature-bubble absolute">
                 <i class="fas fa-home feature-bubble-icon"></i>
                 <span class="feature-bubble-text">Beranda</span>
             </a>
@@ -487,11 +487,11 @@
                 <i class="fas fa-user-lock feature-bubble-icon"></i> <!-- Gabungan ikon -->
                 <span class="feature-bubble-text">Login/Pelayanan</span>
             </a>
-            <a href="#" id="profil-kami" class="feature-bubble absolute">
+            <a href="/profil-kami" id="profil-kami" class="feature-bubble absolute">
                 <i class="fas fa-user feature-bubble-icon"></i>
                 <span class="feature-bubble-text">Profil Kami</span>
             </a>
-            <a href="#" id="faq" class="feature-bubble absolute">
+            <a href="/faq" id="faq" class="feature-bubble absolute">
                 <i class="fas fa-question-circle feature-bubble-icon"></i>
                 <span class="feature-bubble-text">FAQ</span>
             </a>

@@ -1,0 +1,197 @@
+<!-- resources/views/profil-kami.blade.php -->
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil Kami - BMKG Stasiun Meteorologi Maritim Pontianak</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome untuk ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom, #87CEEB, #2E86C1);
+            overflow: auto;
+        }
+
+        .background-dots {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            animation: moveDots 20s linear infinite;
+        }
+
+        @keyframes moveDots {
+            from { background-position: 0 0; }
+            to { background-position: 200px 200px; }
+        }
+
+        .hero-section {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            color: white;
+            padding: 4rem 2rem;
+        }
+
+        .content-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 900px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .vision-mission {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .vm-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .service-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 2rem 1rem;
+            }
+
+            .hero-section h1 {
+                font-size: 2rem;
+            }
+
+            .hero-section h2 {
+                font-size: 1.5rem;
+            }
+
+            .content-card {
+                margin: 1rem auto;
+                padding: 1rem;
+                max-width: 100%;
+            }
+
+            .vision-mission {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .services-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .service-item {
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-dots"></div>
+    <div class="hero-section">
+        <h1 class="text-5xl font-bold mb-4">Profil Kami</h1>
+        <h2 class="text-3xl font-semibold">BMKG Stasiun Meteorologi Maritim Pontianak</h2>
+    </div>
+
+    <div class="content-card">
+        <h3 class="text-2xl font-bold text-center mb-6">Tentang Kami</h3>
+        <p class="text-lg leading-relaxed">
+            BMKG Stasiun Meteorologi Maritim Pontianak adalah unit pelaksana teknis Badan Meteorologi, Klimatologi, dan Geofisika (BMKG) yang berlokasi di Pontianak, Kalimantan Barat. Kami berkomitmen untuk memberikan layanan informasi meteorologi, klimatologi, dan geofisika yang akurat dan tepat waktu, khususnya untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah pesisir dan laut.
+        </p>
+        <p class="text-lg leading-relaxed mt-4">
+            Dengan dukungan teknologi modern dan tenaga ahli yang profesional, kami terus berinovasi untuk memberikan pelayanan terbaik kepada masyarakat, pemerintah, dan dunia usaha.
+        </p>
+    </div>
+
+    <div class="content-card">
+        <h3 class="text-2xl font-bold text-center mb-6">Visi dan Misi</h3>
+        <div class="vision-mission">
+            <div class="vm-card">
+                <h4 class="text-xl font-semibold mb-4">Visi</h4>
+                <p>Menjadi pusat unggulan informasi meteorologi maritim yang handal dan terpercaya untuk mendukung pembangunan nasional dan keselamatan masyarakat.</p>
+            </div>
+            <div class="vm-card">
+                <h4 class="text-xl font-semibold mb-4">Misi</h4>
+                <ul class="text-left list-disc list-inside">
+                    <li>Menyediakan informasi cuaca dan iklim yang akurat</li>
+                    <li>Mengembangkan sistem peringatan dini bencana</li>
+                    <li>Meningkatkan kapasitas sumber daya manusia</li>
+                    <li>Mendorong inovasi teknologi meteorologi</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-card">
+        <h3 class="text-2xl font-bold text-center mb-6">Layanan Kami</h3>
+        <div class="services-grid">
+            <div class="service-item">
+                <i class="fas fa-cloud-sun text-3xl text-white mb-2"></i>
+                <h5 class="font-semibold">Prakiraan Cuaca</h5>
+                <p>Informasi cuaca harian dan jangka pendek</p>
+            </div>
+            <div class="service-item">
+                <i class="fas fa-water text-3xl text-white mb-2"></i>
+                <h5 class="font-semibold">Data Maritim</h5>
+                <p>Gelombang laut, pasang surut, dan kondisi laut</p>
+            </div>
+            <div class="service-item">
+                <i class="fas fa-chart-bar text-3xl text-white mb-2"></i>
+                <h5 class="font-semibold">Analisis Iklim</h5>
+                <p>Studi iklim regional dan nasional</p>
+            </div>
+            <div class="service-item">
+                <i class="fas fa-exclamation-circle text-3xl text-white mb-2"></i>
+                <h5 class="font-semibold">Peringatan Dini</h5>
+                <p>Sistem peringatan bencana hidrometeorologi</p>
+            </div>
+            <div class="service-item">
+                <i class="fas fa-users text-3xl text-white mb-2"></i>
+                <h5 class="font-semibold">Konsultasi</h5>
+                <p>Layanan konsultasi untuk berbagai keperluan</p>
+            </div>
+            <div class="service-item">
+                <i class="fas fa-graduation-cap text-3xl text-white mb-2"></i>
+                <h5 class="font-semibold">Pelatihan</h5>
+                <p>Program pendidikan dan pelatihan meteorologi</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

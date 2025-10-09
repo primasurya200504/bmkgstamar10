@@ -18,7 +18,7 @@
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600">
             <div class="z-10">
                 <a href="/">
-                    <img src="/img/logo.png" class="w-20 h-20 mx-auto drop-shadow-lg" alt="Logo" />
+                    <img src="/img/logo.png" class="w-35 h-20 mx-auto drop-shadow-lg" alt="Logo" />
                 </a>
             </div>
 

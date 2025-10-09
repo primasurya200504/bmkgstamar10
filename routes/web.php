@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\DataUploadController;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+Route::view('/', 'welcome');
+
+Route::view('/beranda', 'beranda');
+Route::view('/profil-kami', 'profil-kami');
+Route::view('/faq', 'faq');
 
 Route::middleware('auth')->group(function () {
     // Admin routes (integrasi dengan user, tapi protected admin middleware)
