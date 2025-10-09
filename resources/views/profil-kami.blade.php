@@ -223,6 +223,7 @@
                         <li><a href="/profil-kami" class="hover:text-blue-300">Profil Kami</a></li>
                         <li><a href="/faq" class="hover:text-blue-300">FAQ</a></li>
                         <li><a href="/login" class="hover:text-blue-300">Login</a></li>
+                        <li><a href="https://www.bmkg.go.id/" target="_blank" class="hover:text-blue-300">BMKG Pusat</a></li>
                     </ul>
                 </div>
             </div>
