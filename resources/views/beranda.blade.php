@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beranda - BMKG Stasiun Meteorologi Maritim Pontianak</title>
+    <link rel="icon" type="image/x-icon" href="/img/logo.png">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome untuk ikon -->
@@ -33,8 +34,13 @@
         }
 
         @keyframes moveDots {
-            from { background-position: 0 0; }
-            to { background-position: 200px 200px; }
+            from {
+                background-position: 0 0;
+            }
+
+            to {
+                background-position: 200px 200px;
+            }
         }
 
         .hero-section {
@@ -115,6 +121,37 @@
             }
         }
     </style>
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+
+        function showSlide(index) {
+            const slider = document.getElementById('slider');
+            slider.style.transform = `translateX(-${index * 100}%)`;
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('opacity-100', i === index);
+                dot.classList.toggle('opacity-50', i !== index);
+            });
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            showSlide(currentSlide);
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            showSlide(currentSlide);
+        }
+
+        setInterval(nextSlide, 5000); // Auto slide every 5 seconds
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            showSlide(currentSlide);
+        });
+    </script>
 </head>
 
 <body>
@@ -123,8 +160,32 @@
         <h1 class="text-5xl font-bold mb-4">Selamat Datang di</h1>
         <h2 class="text-3xl font-semibold mb-8">BMKG Stasiun Meteorologi Maritim Pontianak</h2>
         <p class="text-xl max-w-2xl mx-auto">
-            Menyediakan informasi cuaca, iklim, dan geofisika terkini untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak dan sekitarnya.
+            Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan geofisika terkini untuk mendukung
+            keselamatan pelayaran dan kegiatan
+            masyarakat di wilayah Pontianak dan sekitarnya.
         </p>
+    </div>
+
+    <div class="content-card">
+        <h3 class="text-2xl font-bold text-center mb-6">Berita Terkini</h3>
+        <div class="relative overflow-hidden rounded-lg mb-6">
+            <div class="slider flex transition-transform duration-500 ease-in-out" id="slider">
+                <div class="slide flex-shrink-0 w-full">
+                    <img src="img/beranda/ptsp1.jpeg" alt="Berita 1" class="w-full h-full object-cover">
+                </div>
+                <div class="slide flex-shrink-0 w-full">
+                    <img src="img/beranda/ptsp2.png" alt="Berita 2" class="w-full h-full object-cover">
+                </div>
+                <div class="slide flex-shrink-0 w-full">
+                    <img src="img/beranda/ptsp3.jpeg" alt="Berita 3" class="w-full h-full object-cover">
+                </div>
+            </div>
+            <div class="flex justify-center space-x-2 mt-4">
+                <button class="dot w-3 h-3 bg-white rounded-full opacity-50" onclick="goToSlide(0)"></button>
+                <button class="dot w-3 h-3 bg-white rounded-full opacity-50" onclick="goToSlide(1)"></button>
+                <button class="dot w-3 h-3 bg-white rounded-full opacity-50" onclick="goToSlide(2)"></button>
+            </div>
+        </div>
     </div>
 
     <div class="content-card">
@@ -154,8 +215,9 @@
     </div>
 
     <div class="content-card">
-        <h3 class="text-2xl font-bold text-center mb-6">Berita Terkini</h3>
-        <p class="text-center">Informasi terkini tentang cuaca, iklim, dan kegiatan BMKG akan ditampilkan di sini.</p>
+        <h3 class="text-2xl font-bold text-center mb-6">Prakiraan Cuaca Terkini</h3>
+        <iframe src="https://maritim.bmkg.go.id/cuaca/perairan/perairan-pontianak-mempawah" width="100%"
+            height="600" frameborder="0" allowfullscreen></iframe>
     </div>
 
     <!-- Footer -->
@@ -164,19 +226,25 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
                     <h4 class="text-xl font-bold mb-4">BMKG Stasiun Meteorologi Maritim Pontianak</h4>
-                    <p class="text-sm">Menyediakan informasi cuaca, iklim, dan geofisika untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
+                    <p class="text-sm">Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan
+                        geofisika untuk mendukung keselamatan
+                        pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
                 </div>
                 <div>
                     <h4 class="text-xl font-bold mb-4">Kontak Kami</h4>
-                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Stasiun Meteorologi Maritim Pontianak, Komplek Pelabuhan Dwikora Pontianak, Pontianak, Indonesia</p>
+                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Stasiun Meteorologi Maritim Pontianak,
+                        Komplek Pelabuhan Dwikora Pontianak, Pontianak, Indonesia</p>
                     <p class="text-sm"><i class="fas fa-phone mr-2"></i>0561769906 / 08989111213</p>
                     <p class="text-sm"><i class="fas fa-envelope mr-2"></i>info@bmkg-pontianak.go.id</p>
                     <div class="mt-4">
                         <p class="text-sm font-semibold mb-2">Ikuti Kami:</p>
                         <div class="flex space-x-4">
-                            <a href="https://www.instagram.com/infobmkg.maritimkalbar/" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-instagram text-lg"></i></a>
-                            <a href="https://www.facebook.com/infobmkg.maritimkalbar" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-facebook text-lg"></i></a>
-                            <a href="https://twitter.com/bmkgmaritimpnk" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-twitter text-lg"></i></a>
+                            <a href="https://www.instagram.com/infobmkg.maritimkalbar/" target="_blank"
+                                class="text-white hover:text-blue-300"><i class="fab fa-instagram text-lg"></i></a>
+                            <a href="https://www.facebook.com/infobmkg.maritimkalbar" target="_blank"
+                                class="text-white hover:text-blue-300"><i class="fab fa-facebook text-lg"></i></a>
+                            <a href="https://twitter.com/bmkgmaritimpnk" target="_blank"
+                                class="text-white hover:text-blue-300"><i class="fab fa-twitter text-lg"></i></a>
                         </div>
                     </div>
                 </div>
@@ -187,14 +255,18 @@
                         <li><a href="/profil-kami" class="hover:text-blue-300">Profil Kami</a></li>
                         <li><a href="/faq" class="hover:text-blue-300">FAQ</a></li>
                         <li><a href="/login" class="hover:text-blue-300">Login</a></li>
-                        <li><a href="https://www.bmkg.go.id/" target="_blank" class="hover:text-blue-300">BMKG Pusat</a></li>
+                        <li><a href="https://www.bmkg.go.id/" target="_blank" class="hover:text-blue-300">BMKG
+                                Pusat</a>
+                        </li>
                     </ul>
                 </div>
             </div>
             <div class="border-t border-white/20 mt-8 pt-4 text-center">
-                <p class="text-sm">&copy; 2024 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved.</p>
+                <p class="text-sm">© 2025 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved. Intern
+                    students of the Informatics Facilities Development (UBSI Kota Pontianak) program.</p>
             </div>
         </div>
     </footer>
 </body>
+
 </html>

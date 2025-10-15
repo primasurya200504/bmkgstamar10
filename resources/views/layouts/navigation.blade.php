@@ -2,6 +2,7 @@
 <div class="sidebar w-72 flex flex-col shadow-2xl">
     <div class="flex items-center justify-center h-20 border-b border-white border-opacity-20">
         <div class="text-center">
+            <img src="/img/logo.png" alt="BMKG Logo" class="w-16 h-16 mx-auto mb-2">
             <h1 class="text-white text-xl font-bold">BMKG STAMAR</h1>
             <p class="text-white text-sm opacity-80">Admin Panel</p>
         </div>

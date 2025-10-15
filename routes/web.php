@@ -15,6 +15,7 @@ Route::view('/', 'welcome');
 Route::view('/beranda', 'beranda');
 Route::view('/profil-kami', 'profil-kami');
 Route::view('/faq', 'faq');
+Route::view('/formulir-permohonan', 'formulir-permohonan');
 
 Route::middleware('auth')->group(function () {
     // Admin routes (integrasi dengan user, tapi protected admin middleware)

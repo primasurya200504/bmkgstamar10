@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
@@ -40,5 +43,40 @@ class PasswordResetLinkController extends Controller
                     ? back()->with('status', __($status))
                     : back()->withInput($request->only('email'))
                         ->withErrors(['email' => __($status)]);
+    }
+
+    /**
+     * Handle custom password reset without email link.
+     */
+    public function resetCustom(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+            'phone_number' => ['required', 'string'],
+        ]);
+
+        // Cari user berdasarkan email
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return back()->withInput($request->only('email', 'phone_number'))
+                        ->withErrors(['email' => 'Email tidak terdaftar di database.']);
+        }
+
+        // Periksa apakah nomor HP cocok
+        if ($user->phone_number !== $request->phone_number) {
+            return back()->withInput($request->only('email', 'phone_number'))
+                        ->withErrors(['phone_number' => 'Nomor HP salah.']);
+        }
+
+        // Generate password baru
+        $newPassword = Str::random(8); // Password 8 karakter acak
+
+        // Update password user
+        $user->password = Hash::make($newPassword);
+        $user->save();
+
+        // Redirect kembali dengan pesan sukses dan password baru
+        return back()->with('new_password', $newPassword);
     }
 }

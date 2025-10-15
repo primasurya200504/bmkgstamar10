@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ - BMKG Stasiun Meteorologi Maritim Pontianak</title>
+    <link rel="icon" type="image/x-icon" href="/img/logo.png">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome untuk ikon -->
@@ -341,7 +342,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
                     <h4 class="text-xl font-bold mb-4">BMKG Stasiun Meteorologi Maritim Pontianak</h4>
-                    <p class="text-sm">Menyediakan informasi cuaca, iklim, dan geofisika untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
+                    <p class="text-sm">Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan geofisika untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
                 </div>
                 <div>
                     <h4 class="text-xl font-bold mb-4">Kontak Kami</h4>
@@ -369,7 +370,7 @@
                 </div>
             </div>
             <div class="border-t border-white/20 mt-8 pt-4 text-center">
-                <p class="text-sm">&copy; 2024 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved.</p>
+                <p class="text-sm">© 2025 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved. Intern students of the Informatics Facilities Development (UBSI Kota Pontianak) program.</p>
             </div>
         </div>
     </footer>

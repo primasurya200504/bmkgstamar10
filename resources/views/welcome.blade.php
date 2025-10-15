@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BMKG - Badan Meteorologi, Klimatologi, dan Geofisika</title>
+    <link rel="icon" type="image/x-icon" href="/img/logo.png">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome untuk ikon -->
@@ -13,7 +14,8 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Bebas+Neue&display=swap"
+        rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -113,7 +115,8 @@
             top: 15%;
             left: -250px;
             animation: movePlane 35s linear infinite;
-            animation-delay: 3s; /* Delay agar mengikuti di belakang */
+            animation-delay: 3s;
+            /* Delay agar mengikuti di belakang */
             opacity: 0;
             animation-fill-mode: forwards;
         }
@@ -125,7 +128,7 @@
             font-size: 2rem;
             text-transform: uppercase;
             letter-spacing: 2px;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.7);
         }
 
         @keyframes movePlane {
@@ -390,54 +393,62 @@
             text-align: center;
         }
 
-        /* Posisi untuk setiap bubble (desktop) */
+        /* Posisi untuk setiap bubble (desktop) - 3 bubble di atas, 3 bubble di bawah, lebih jauh dari logo */
         #beranda {
-            top: 20%;
+            top: 15%;
             left: 20%;
         }
 
         #login-pelayanan {
-            top: 60%;
-            left: 20%;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         #profil-kami {
-            top: 20%;
+            top: 15%;
             right: 20%;
+        }
+
+        #formulir-permohonan {
+            top: 80%;
+            left: 20%;
         }
 
         #faq {
-            top: 60%;
-            right: 20%;
+            top: 80%;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         #pengaduan-dan-saran {
-            top: 70%;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 80%;
+            right: 20%;
         }
 
 
         @media (max-width: 768px) {
             .feature-bubble {
                 /* Perkecil bubble agar tidak menumpuk */
-                width: 90px;
-                height: 90px;
+                width: 80px;
+                height: 80px;
             }
 
             .feature-bubble-icon {
-                font-size: 2rem;
+                font-size: 1.5rem;
             }
 
             .feature-bubble-text {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
             }
 
             /* Hapus penempatan posisi mutlak (absolute) untuk mobile */
             #beranda,
             #login-pelayanan,
             #profil-kami,
-            #faq {
+            #formulir-permohonan,
+            #faq,
+            #pengaduan-dan-saran {
                 position: relative;
                 top: unset;
                 left: unset;
@@ -455,6 +466,68 @@
                 width: 100%;
                 height: auto;
                 margin-top: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .feature-bubble {
+                width: 70px;
+                height: 70px;
+            }
+
+            .feature-bubble-icon {
+                font-size: 1.2rem;
+            }
+
+            .feature-bubble-text {
+                font-size: 0.6rem;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .feature-bubble {
+                width: 100px;
+                height: 100px;
+            }
+
+            .feature-bubble-icon {
+                font-size: 2rem;
+            }
+
+            .feature-bubble-text {
+                font-size: 0.8rem;
+            }
+        }
+
+
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .feature-bubble {
+                width: 110px;
+                height: 110px;
+            }
+
+            .feature-bubble-icon {
+                font-size: 2.2rem;
+            }
+
+            .feature-bubble-text {
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .feature-bubble {
+                width: 120px;
+                height: 120px;
+            }
+
+            .feature-bubble-icon {
+                font-size: 2.5rem;
+            }
+
+            .feature-bubble-text {
+                font-size: 0.875rem;
             }
         }
 
@@ -517,7 +590,7 @@
         <!-- Logo BMKG, tambahkan z-index agar selalu di atas dan bisa diklik -->
         <div class="logo-container z-50" id="logo-main">
             <!-- Menggunakan logo BMKG yang berbeda dari sumber lain -->
-            <img src="img/logo.png" alt="Logo BMKG" class="sm:w-45 sm:h-48">
+            <img src="img/logo.png" alt="Logo BMKG" class="sm:w-30 sm:h-40">
         </div>
 
         <!-- Welcome Text Following Plane -->
@@ -540,11 +613,16 @@
                 <i class="fas fa-user feature-bubble-icon"></i>
                 <span class="feature-bubble-text">Profil Kami</span>
             </a>
+            <a href="/formulir-permohonan" id="formulir-permohonan" class="feature-bubble absolute">
+                <i class="fas fa-file-alt feature-bubble-icon"></i>
+                <span class="feature-bubble-text">Formulir Permohonan</span>
+            </a>
             <a href="/faq" id="faq" class="feature-bubble absolute">
                 <i class="fas fa-question-circle feature-bubble-icon"></i>
                 <span class="feature-bubble-text">FAQ</span>
             </a>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLScn6JdMB9vaASfy1ImfaNVld2AAjh4Sf8oVZh0yOPIT20c92Q/viewform?uid=108069731218267343512&pli=1" id="pengaduan-dan-saran" class="feature-bubble absolute" target="_blank">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLScn6JdMB9vaASfy1ImfaNVld2AAjh4Sf8oVZh0yOPIT20c92Q/viewform?uid=108069731218267343512&pli=1"
+                id="pengaduan-dan-saran" class="feature-bubble absolute" target="_blank">
                 <i class="fas fa-comment-dots feature-bubble-icon"></i>
                 <span class="feature-bubble-text">Pengaduan Dan Saran</span>
             </a>
