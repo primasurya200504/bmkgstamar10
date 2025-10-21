@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }} - Admin</title>
-    <link rel="icon" type="image/x-icon" href="/img/logo.png">
+    <link rel="icon" type="image/png" sizes="30x35" href="/img/favicon-32x32.png">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -90,7 +90,8 @@
 
 <body class="flex min-h-screen">
     <!-- Hamburger Menu for Mobile -->
-    <button class="hamburger fixed top-4 left-4 z-40 bg-blue-600 text-white p-2 rounded-md md:hidden" onclick="toggleSidebar()">
+    <button class="hamburger fixed top-4 left-4 z-40 bg-blue-600 text-white p-2 rounded-md md:hidden"
+        onclick="toggleSidebar()">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
         </svg>
