@@ -41,14 +41,16 @@ if (!function_exists('get_status_text')) {
     {
         $statusTexts = [
             'pending' => 'Menunggu Review',
+            'Diproses' => 'Menunggu Upload e-Billing',
             'verified' => 'Terverifikasi',
             'payment_pending' => 'Menunggu Pembayaran',
+            'proof_uploaded' => 'Bukti Pembayaran Diupload',
             'paid' => 'Sudah Bayar',
             'processing' => 'Sedang Diproses',
             'completed' => 'Selesai',
             'rejected' => 'Ditolak'
         ];
-        
+
         return $statusTexts[$status] ?? ucfirst($status);
     }
 }

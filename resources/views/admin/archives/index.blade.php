@@ -123,9 +123,9 @@
                                             {{ $archive->notes ?? 'Pengajuan selesai diproses dan diarsipkan' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button onclick="showArchiveDetail({{ $archive->id }})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                            <a href="#" onclick="showArchiveDetail({{ $archive->id }}); return false;" class="text-indigo-600 hover:text-indigo-900 transition-colors">
                                                 Detail
-                                            </button>
+                                            </a>
                                         </td>
                                     </tr>
                                 @endforeach

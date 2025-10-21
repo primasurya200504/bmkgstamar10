@@ -28,8 +28,8 @@ class AdminController extends Controller
     // Manajemen Pengajuan (list & approve/reject)
     public function submissions()
     {
-        $submissions = Submission::with('user', 'files')
-            ->whereNotIn('status', ['Selesai', 'Diproses'])
+        $submissions = Submission::with('user', 'files', 'guideline')
+            ->whereNotIn('status', ['Selesai', 'Diproses', 'completed'])
             ->whereDoesntHave('archives')
             ->paginate(10);
         return view('admin.submissions.index', compact('submissions'));
@@ -246,9 +246,10 @@ class AdminController extends Controller
         $month = request('month');
         $category = request('category');
 
-        // Get all completed submissions (status 'completed')
+        // Get all completed submissions (status 'completed') that don't have archive records
         $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'generatedDocuments.uploader', 'payment', 'files'])
-            ->where('status', 'completed');
+            ->where('status', 'completed')
+            ->whereDoesntHave('archives');
 
         // Apply search filter
         if ($search) {
@@ -531,9 +532,10 @@ class AdminController extends Controller
         $month = request('month');
         $category = request('category');
 
-        // Get all completed submissions (status 'completed')
-        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'payment'])
-            ->where('status', 'completed');
+        // Get all completed submissions (status 'completed') that don't have archive records
+        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'payment', 'files', 'generatedDocuments'])
+            ->where('status', 'completed')
+            ->whereDoesntHave('archives');
 
         // Apply search filter
         if ($search) {
@@ -594,10 +596,10 @@ class AdminController extends Controller
 
         $archiveRecords = $archiveRecordsQuery->get();
 
-        // Combine all archives
-        $allArchives = $completedSubmissions->concat($archiveRecords->map(function($archive) {
+        // Combine all archives - only include submissions from archive records
+        $allArchives = $archiveRecords->map(function($archive) {
             return $archive->submission ?? $archive;
-        }))->sortByDesc('updated_at');
+        })->concat($completedSubmissions)->sortByDesc('updated_at');
 
         // Calculate totals
         $totalArchives = $allArchives->count();
