@@ -60,54 +60,79 @@
                     </form>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Surat</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori Data</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Arsip</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($archives as $archive)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {{ $archive->id }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $archive->submission->submission_number ?? 'SUB-' . str_pad($archive->submission->id, 4, '0', STR_PAD_LEFT) }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $archive->submission->user->name ?? 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                            @if($archive->submission->guideline->type == 'pnbp') bg-green-100 text-green-800
-                                            @else bg-blue-100 text-blue-800 @endif">
-                                            {{ strtoupper($archive->submission->guideline->type ?? 'N/A') }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $archive->archive_date ? $archive->archive_date->format('d/m/Y H:i') : $archive->created_at->format('d/m/Y H:i') }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-500">
-                                        {{ $archive->notes ?? 'Pengajuan selesai diproses dan diarsipkan' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button onclick="showArchiveDetail({{ $archive->id }})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
-                                            Detail
-                                        </button>
-                                    </td>
+                <!-- Form untuk export PDF terpilih -->
+                <form id="exportForm" method="POST" action="{{ route('admin.archives.export-selected-pdf') }}">
+                    @csrf
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                <span class="ml-2 text-sm text-gray-700">Pilih Semua</span>
+                            </label>
+                            <button type="submit" id="exportSelectedBtn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                Export PDF Terpilih
+                            </button>
+                        </div>
+                        <a href="{{ route('admin.archives.export-pdf') . '?' . request()->getQueryString() }}" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                            Export PDF Semua
+                        </a>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <input type="checkbox" id="selectAllHeader" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Surat</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori Data</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Arsip</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($archives as $archive)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="checkbox" name="selected_archives[]" value="{{ $archive->id }}" class="archive-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {{ $archive->id }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $archive->submission->submission_number ?? 'SUB-' . str_pad($archive->submission->id, 4, '0', STR_PAD_LEFT) }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $archive->submission->user->name ?? 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                @if($archive->submission->guideline->type == 'pnbp') bg-green-100 text-green-800
+                                                @else bg-blue-100 text-blue-800 @endif">
+                                                {{ strtoupper($archive->submission->guideline->type ?? 'N/A') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $archive->archive_date ? $archive->archive_date->format('d/m/Y H:i') : $archive->created_at->format('d/m/Y H:i') }}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-500">
+                                            {{ $archive->notes ?? 'Pengajuan selesai diproses dan diarsipkan' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button onclick="showArchiveDetail({{ $archive->id }})" class="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                                Detail
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
 
                 <div class="mt-4">
                     {{ $archives->links() }}
@@ -138,6 +163,54 @@
 </div>
 
 <script>
+// Checkbox functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const selectAllHeaderCheckbox = document.getElementById('selectAllHeader');
+    const archiveCheckboxes = document.querySelectorAll('.archive-checkbox');
+    const exportSelectedBtn = document.getElementById('exportSelectedBtn');
+
+    function updateExportButton() {
+        const checkedBoxes = document.querySelectorAll('.archive-checkbox:checked');
+        exportSelectedBtn.disabled = checkedBoxes.length === 0;
+    }
+
+    // Handle "Pilih Semua" checkbox
+    selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        archiveCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        selectAllHeaderCheckbox.checked = isChecked;
+        updateExportButton();
+    });
+
+    // Handle header checkbox
+    selectAllHeaderCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        archiveCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        selectAllCheckbox.checked = isChecked;
+        updateExportButton();
+    });
+
+    // Handle individual checkboxes
+    archiveCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const totalCheckboxes = archiveCheckboxes.length;
+            const checkedBoxes = document.querySelectorAll('.archive-checkbox:checked').length;
+
+            selectAllCheckbox.checked = checkedBoxes === totalCheckboxes;
+            selectAllHeaderCheckbox.checked = checkedBoxes === totalCheckboxes;
+            updateExportButton();
+        });
+    });
+
+    // Initial state
+    updateExportButton();
+});
+
 function showArchiveDetail(archiveId) {
     // Fetch archive detail
     fetch(`/admin/archives/${archiveId}`)

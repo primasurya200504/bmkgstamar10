@@ -247,7 +247,7 @@ class AdminController extends Controller
         $category = request('category');
 
         // Get all completed submissions (status 'completed')
-        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'generatedDocuments.uploader'])
+        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'generatedDocuments.uploader', 'payment', 'files'])
             ->where('status', 'completed');
 
         // Apply search filter
@@ -563,7 +563,7 @@ class AdminController extends Controller
         $completedSubmissions = $completedSubmissionsQuery->get();
 
         // Get actual Archive records
-        $archiveRecordsQuery = Archive::with(['submission.user', 'submission.guideline', 'submission.payment']);
+        $archiveRecordsQuery = Archive::with(['submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'submission.generatedDocuments']);
 
         // Apply search filter to archive records
         if ($search) {
@@ -596,7 +596,7 @@ class AdminController extends Controller
 
         // Combine all archives
         $allArchives = $completedSubmissions->concat($archiveRecords->map(function($archive) {
-            return $archive->submission;
+            return $archive->submission ?? $archive;
         }))->sortByDesc('updated_at');
 
         // Calculate totals
@@ -614,6 +614,51 @@ class AdminController extends Controller
         ));
 
         $filename = 'laporan-arsip-' . now()->format('Y-m-d-H-i-s') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    // Export selected archives to PDF
+    public function exportSelectedArchivesPdf(Request $request)
+    {
+        $request->validate([
+            'selected_archives' => 'required|array|min:1',
+            'selected_archives.*' => 'integer|exists:archives,id'
+        ]);
+
+        $selectedIds = $request->selected_archives;
+
+        // Get selected Archive records with all necessary relationships
+        $archiveRecords = Archive::with(['submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'submission.generatedDocuments'])
+            ->whereIn('id', $selectedIds)
+            ->get();
+
+        // Convert to the format expected by PDF template
+        $allArchives = $archiveRecords->map(function($archive) {
+            return $archive->submission ?? $archive;
+        })->sortByDesc('updated_at');
+
+        // Calculate totals for selected archives
+        $totalArchives = $allArchives->count();
+        $totalPnbp = $allArchives->where('guideline.type', 'pnbp')->count();
+        $totalNonPnbp = $allArchives->where('guideline.type', 'non_pnbp')->count();
+        $totalAmount = $allArchives->where('guideline.type', 'pnbp')->sum(function($archive) {
+            return $archive->payment ? $archive->payment->amount : 0;
+        });
+
+        // Set default values for filter variables (not used in selected export)
+        $search = null;
+        $year = null;
+        $month = null;
+        $category = null;
+
+        // Generate PDF
+        $pdf = Pdf::loadView('admin.archives.pdf', compact(
+            'allArchives', 'totalArchives', 'totalPnbp', 'totalNonPnbp', 'totalAmount',
+            'search', 'year', 'month', 'category'
+        ));
+
+        $filename = 'laporan-arsip-terpilih-' . now()->format('Y-m-d-H-i-s') . '.pdf';
 
         return $pdf->download($filename);
     }
