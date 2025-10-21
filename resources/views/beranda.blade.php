@@ -145,7 +145,7 @@
             showSlide(currentSlide);
         }
 
-        setInterval(nextSlide, 5000); // Auto slide every 5 seconds
+        setInterval(nextSlide, 4000); // Auto slide every 4 seconds
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -167,17 +167,17 @@
     </div>
 
     <div class="content-card">
-        <h3 class="text-2xl font-bold text-center mb-6">Berita Terkini</h3>
+        <h3 class="text-2xl font-bold text-center mb-6">Highlight Terkini</h3>
         <div class="relative overflow-hidden rounded-lg mb-6">
             <div class="slider flex transition-transform duration-500 ease-in-out" id="slider">
                 <div class="slide flex-shrink-0 w-full">
-                    <img src="img/beranda/ptsp1.jpeg" alt="Berita 1" class="w-full h-full object-cover">
+                    <img src="img/beranda/ptsp1.png" alt="Berita 1" class="w-full h-full object-cover">
                 </div>
                 <div class="slide flex-shrink-0 w-full">
                     <img src="img/beranda/ptsp2.png" alt="Berita 2" class="w-full h-full object-cover">
                 </div>
                 <div class="slide flex-shrink-0 w-full">
-                    <img src="img/beranda/ptsp3.jpeg" alt="Berita 3" class="w-full h-full object-cover">
+                    <img src="img/beranda/ptsp3.png" alt="Berita 3" class="w-full h-full object-cover">
                 </div>
             </div>
             <div class="flex justify-center space-x-2 mt-4">

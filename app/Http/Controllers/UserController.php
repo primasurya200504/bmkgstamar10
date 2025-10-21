@@ -322,7 +322,7 @@ class UserController extends Controller
     }
 
     /**
-     * Store Submission - FIXED dengan nama method yang sesuai route
+     * Store Submission - FIXED dengan pencegahan double submit menyeluruh
      */
     public function storeSubmission(Request $request)
     {
@@ -336,6 +336,52 @@ class UserController extends Controller
             ]);
 
             $user = Auth::user();
+
+            // CEK DOUBLE SUBMIT MENYELURUH: Pencegahan multi-level
+            // 1. Check recent submissions with same guideline in last 30 seconds
+            $recentSubmission = Submission::where('user_id', $user->id)
+                ->where('guideline_id', $request->guideline_id)
+                ->where('status', 'pending')
+                ->where('created_at', '>=', now()->subSeconds(30))
+                ->first();
+
+            if ($recentSubmission) {
+                Log::warning('Double submit attempt detected - Recent submission', [
+                    'user_id' => $user->id,
+                    'guideline_id' => $request->guideline_id,
+                    'recent_submission_id' => $recentSubmission->id,
+                    'recent_submission_created' => $recentSubmission->created_at
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengajuan serupa sudah dikirim dalam 30 detik terakhir. Silakan tunggu sebentar sebelum mengajukan lagi.'
+                ], 429);
+            }
+
+            // 2. Check for identical submission data in last 60 seconds (content-based duplicate prevention)
+            $identicalSubmission = Submission::where('user_id', $user->id)
+                ->where('guideline_id', $request->guideline_id)
+                ->where('purpose', $request->purpose)
+                ->where('start_date', $request->start_date)
+                ->where('end_date', $request->end_date)
+                ->where('created_at', '>=', now()->subMinutes(1))
+                ->first();
+
+            if ($identicalSubmission) {
+                Log::warning('Double submit attempt detected - Identical content', [
+                    'user_id' => $user->id,
+                    'guideline_id' => $request->guideline_id,
+                    'identical_submission_id' => $identicalSubmission->id,
+                    'purpose_hash' => md5($request->purpose)
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengajuan dengan data identik sudah dikirim. Silakan periksa riwayat pengajuan Anda.'
+                ], 429);
+            }
+
             $guideline = Guideline::findOrFail($request->guideline_id);
 
             // Decode required documents safely
@@ -343,13 +389,40 @@ class UserController extends Controller
 
             DB::beginTransaction();
 
-            // Generate submission number
-            $submissionNumber = 'BMKG-' . strtoupper($guideline->type) . '-' .
-                date('md') . '-' . date('Y') . '-' .
-                str_pad(Submission::count() + 1, 4, '0', STR_PAD_LEFT);
+            // Generate UNIQUE submission number dengan atomic increment
+            DB::beginTransaction();
 
-            // Create submission
-            $submission = Submission::create([
+            try {
+                // Lock the submissions table to prevent race conditions
+                $lastSubmission = Submission::lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $nextNumber = $lastSubmission ? $lastSubmission->id + 1 : 1;
+
+                $submissionNumber = 'BMKG-' . strtoupper($guideline->type) . '-' .
+                    date('md') . '-' . date('Y') . '-' .
+                    str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+
+                // Double-check uniqueness
+                $existing = Submission::where('submission_number', $submissionNumber)->exists();
+                if ($existing) {
+                    // Fallback: use timestamp-based unique number
+                    $submissionNumber = 'BMKG-' . strtoupper($guideline->type) . '-' .
+                        date('mdHis') . '-' . str_pad($user->id, 3, '0', STR_PAD_LEFT);
+                }
+
+                DB::commit(); // Commit the lock transaction
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw new \Exception('Gagal generate nomor pengajuan unik: ' . $e->getMessage());
+            }
+
+            // Start new transaction for the actual submission creation
+            DB::beginTransaction();
+
+            // Create submission with additional safety checks
+            $submissionData = [
                 'user_id' => $user->id,
                 'guideline_id' => $guideline->id,
                 'submission_number' => $submissionNumber,
@@ -357,8 +430,22 @@ class UserController extends Controller
                 'purpose' => $request->purpose,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
-                'status' => 'pending'
-            ]);
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+
+            $submissionId = DB::table('submissions')->insertGetId($submissionData);
+
+            if (!$submissionId) {
+                throw new \Exception('Gagal menyimpan pengajuan ke database. Silakan coba lagi.');
+            }
+
+            // Load the submission model
+            $submission = Submission::find($submissionId);
+            if (!$submission) {
+                throw new \Exception('Gagal memuat data pengajuan setelah penyimpanan.');
+            }
 
             // Handle file uploads based on required documents
             $expectedFileCount = count($requiredDocs);
@@ -406,16 +493,31 @@ class UserController extends Controller
 
             DB::commit();
 
-            Log::info('Submission created successfully', ['submission_id' => $submission->id, 'user_id' => $user->id]);
+            Log::info('Submission created successfully', [
+                'submission_id' => $submission->id,
+                'submission_number' => $submissionNumber,
+                'user_id' => $user->id
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Pengajuan berhasil dikirim',
                 'data' => $submission->load('guideline')
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation error creating submission', ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . implode(', ', collect($e->errors())->flatten()->toArray())
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating submission: ' . $e->getMessage());
+            Log::error('Error creating submission', [
+                'message' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'guideline_id' => $request->guideline_id ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'success' => false,

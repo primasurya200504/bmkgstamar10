@@ -200,20 +200,20 @@ class AdminController extends Controller
     public function showArchive($id)
     {
         // First try to find an actual Archive record
-        $archive = Archive::with(['submission.user', 'submission.files', 'submission.generatedDocuments', 'submission.histories', 'submission.payment'])->find($id);
+        $archive = Archive::with(['submission.user', 'submission.files', 'submission.generatedDocuments.uploader', 'submission.histories', 'submission.payment'])->find($id);
 
         if ($archive) {
             // It's an actual Archive record
             $data = [
                 'id' => $archive->id,
-                'submission' => $archive->submission->load('guideline', 'files', 'generatedDocuments', 'histories', 'payment'),
+                'submission' => $archive->submission->load('guideline', 'files', 'generatedDocuments.uploader', 'histories', 'payment'),
                 'archive_date' => $archive->archive_date,
                 'notes' => $archive->notes,
                 'created_at' => $archive->created_at,
             ];
         } else {
             // Try to find a completed submission with this ID
-            $submission = Submission::with(['user', 'guideline', 'files', 'generatedDocuments', 'histories', 'payment'])
+            $submission = Submission::with(['user', 'guideline', 'files', 'generatedDocuments.uploader', 'histories', 'payment'])
                 ->where('status', 'completed')
                 ->find($id);
 
@@ -244,7 +244,7 @@ class AdminController extends Controller
         $month = request('month');
 
         // Get all completed submissions (status 'completed')
-        $completedSubmissionsQuery = Submission::with(['user', 'generatedDocuments'])
+        $completedSubmissionsQuery = Submission::with(['user', 'generatedDocuments.uploader'])
             ->where('status', 'completed');
 
         // Apply filters to completed submissions
@@ -269,7 +269,7 @@ class AdminController extends Controller
             });
 
         // Get actual Archive records
-        $archiveRecordsQuery = Archive::with(['submission.generatedDocuments', 'user']);
+        $archiveRecordsQuery = Archive::with(['submission.generatedDocuments.uploader', 'user']);
 
         // Apply filters to archive records
         if ($year) {

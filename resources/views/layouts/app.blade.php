@@ -108,6 +108,29 @@
             const sidebar = document.querySelector('.sidebar');
             sidebar.classList.toggle('open');
         }
+
+        // Function to highlight active navigation item
+        function highlightActiveNav() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('nav a');
+
+            navLinks.forEach(link => {
+                link.classList.remove('bg-white', 'bg-opacity-20');
+                link.classList.add('hover:bg-white', 'hover:bg-opacity-20');
+            });
+
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('bg-white', 'bg-opacity-20');
+                    link.classList.remove('hover:bg-white', 'hover:bg-opacity-20');
+                }
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            highlightActiveNav();
+        });
     </script>
 </body>
 

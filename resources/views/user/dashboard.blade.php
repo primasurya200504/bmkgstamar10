@@ -1025,15 +1025,26 @@
             }
         }
 
-        // REST OF THE JAVASCRIPT FUNCTIONS (same as before)
+        // Global flag to prevent double submission
+        let isSubmitting = false;
+
         async function submitForm() {
+            // Prevent double submission
+            if (isSubmitting) {
+                console.log('Submission already in progress, ignoring duplicate request');
+                return;
+            }
+
             const submitBtn = document.getElementById('submitBtn');
             const submitBtnText = document.getElementById('submitBtnText');
             const submitBtnLoader = document.getElementById('submitBtnLoader');
 
+            // Set submitting flag
+            isSubmitting = true;
+
             // Show loading state
             submitBtn.disabled = true;
-            submitBtnText.textContent = 'Mengirim...';
+            submitBtnText.textContent = 'Mengirim Pengajuan...';
             submitBtnLoader.classList.remove('hidden');
 
             try {
@@ -1065,7 +1076,8 @@
                 console.error('Error submitting form:', error);
                 alert('Terjadi kesalahan saat mengirim pengajuan: ' + error.message);
             } finally {
-                // Reset button state
+                // Always reset the submitting flag and button state
+                isSubmitting = false;
                 submitBtn.disabled = false;
                 submitBtnText.textContent = 'Ajukan Permohonan';
                 submitBtnLoader.classList.add('hidden');

@@ -258,7 +258,7 @@ function showArchiveDetail(archiveId) {
                                                 </svg>
                                                 <div>
                                                     <p class="text-sm font-medium text-gray-900">${doc.document_name}</p>
-                                                    <p class="text-xs text-gray-500">${doc.formatted_file_size} • Oleh: ${doc.uploader_name}</p>
+                                                    <p class="text-xs text-gray-500">${doc.formatted_file_size} • Oleh: ${doc.uploader_name} • ${new Date(doc.created_at).toLocaleDateString('id-ID')}</p>
                                                 </div>
                                             </div>
                                             <button onclick="downloadGeneratedDocument(${data.submission.id}, ${doc.id})" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-3 rounded">

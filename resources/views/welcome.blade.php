@@ -99,26 +99,40 @@
             }
         }
 
-        /* Animasi Pesawat */
-        #plane-img {
-            position: absolute;
-            left: -250px;
-            top: 15%;
-            width: 250px;
-            transform: scaleX(0.8) scaleY(0.8) rotate(5deg);
-            animation: movePlane 35s linear infinite;
-        }
-
-        /* Animasi Teks Mengikuti Pesawat */
+        /* Animasi Teks Mengambang */
         .follow-plane {
             position: absolute;
             top: 15%;
             left: -250px;
-            animation: movePlane 35s linear infinite;
-            animation-delay: 3s;
-            /* Delay agar mengikuti di belakang */
+            animation: floatText 35s linear infinite;
             opacity: 0;
             animation-fill-mode: forwards;
+        }
+
+        @keyframes floatText {
+            0% {
+                transform: translateX(0) translateY(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            20% {
+                transform: translateX(20vw) translateY(-20px);
+            }
+            40% {
+                transform: translateX(40vw) translateY(20px);
+            }
+            60% {
+                transform: translateX(60vw) translateY(-20px);
+            }
+            80% {
+                transform: translateX(80vw) translateY(20px);
+            }
+            100% {
+                transform: translateX(calc(100vw + 250px)) translateY(0);
+                opacity: 0;
+            }
         }
 
         .follow-plane h1 {
@@ -558,8 +572,7 @@
     <div class="animated-bg-container">
         <!-- Petir -->
         <div id="lightning" class="animated-item"></div>
-        <!-- Pesawat sebagai gambar -->
-        <img id="plane-img" src="img/pesawat.gif" alt="Pesawat">
+
         <!-- Awan Hujan -->
         <div id="cloud-1" class="cloud">
             <div class="cloud-rain"></div>
