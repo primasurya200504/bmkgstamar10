@@ -15,6 +15,11 @@
                 <!-- Filter Form -->
                 <div class="bg-gray-50 p-4 rounded-lg mb-6">
                     <form method="GET" action="{{ route('admin.archives') }}" class="flex flex-wrap gap-4 items-end">
+                        <div class="flex-1">
+                            <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Cari</label>
+                            <input type="text" name="search" id="search" value="{{ request('search') }}" placeholder="Cari berdasarkan nama user atau nomor surat..."
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                         <div>
                             <label for="filter_year" class="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
                             <select name="year" id="filter_year" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -33,12 +38,23 @@
                                 @endfor
                             </select>
                         </div>
+                        <div>
+                            <label for="filter_category" class="block text-sm font-medium text-gray-700 mb-1">Kategori Data</label>
+                            <select name="category" id="filter_category" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Semua Kategori</option>
+                                <option value="pnbp" {{ request('category') == 'pnbp' ? 'selected' : '' }}>PNBP</option>
+                                <option value="non_pnbp" {{ request('category') == 'non_pnbp' ? 'selected' : '' }}>Non-PNBP</option>
+                            </select>
+                        </div>
                         <div class="flex gap-2">
                             <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                                 Filter
                             </button>
                             <a href="{{ route('admin.archives') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
                                 Reset
+                            </a>
+                            <a href="{{ route('admin.archives.export-pdf') . '?' . request()->getQueryString() }}" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                Export PDF
                             </a>
                         </div>
                     </form>
@@ -51,6 +67,7 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Surat</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori Data</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal Arsip</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
@@ -67,6 +84,13 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $archive->submission->user->name ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                            @if($archive->submission->guideline->type == 'pnbp') bg-green-100 text-green-800
+                                            @else bg-blue-100 text-blue-800 @endif">
+                                            {{ strtoupper($archive->submission->guideline->type ?? 'N/A') }}
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $archive->archive_date ? $archive->archive_date->format('d/m/Y H:i') : $archive->created_at->format('d/m/Y H:i') }}

@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/payments/{id}/reject', [AdminController::class, 'rejectPayment'])->name('reject.payment');
         Route::get('/payments/{id}/download-proof', [AdminController::class, 'downloadPaymentProof'])->name('download.payment.proof');
         Route::get('/archives', [AdminController::class, 'archives'])->name('archives');
+        Route::get('/archives/export-pdf', [AdminController::class, 'exportArchivesPdf'])->name('archives.export-pdf');
         Route::get('/archives/{archive}', [AdminController::class, 'showArchive'])->name('archives.show');
         Route::get('/users', [AdminController::class, 'users'])->name('users');
         Route::get('/users/create', [AdminController::class, 'create'])->name('users.create');

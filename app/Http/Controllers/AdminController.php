@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Response;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Submission; // Untuk manajemen pengajuan
 use App\Models\Payment;    // Untuk eBilling
 use App\Models\Archive;    // Untuk pengarsipan
@@ -240,14 +241,33 @@ class AdminController extends Controller
     // Manajemen Pengarsipan (list semua proses & file)
     public function archives()
     {
+        $search = request('search');
         $year = request('year');
         $month = request('month');
+        $category = request('category');
 
         // Get all completed submissions (status 'completed')
-        $completedSubmissionsQuery = Submission::with(['user', 'generatedDocuments.uploader'])
+        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'generatedDocuments.uploader'])
             ->where('status', 'completed');
 
-        // Apply filters to completed submissions
+        // Apply search filter
+        if ($search) {
+            $completedSubmissionsQuery->where(function($query) use ($search) {
+                $query->whereHas('user', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                })
+                ->orWhere('submission_number', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Apply category filter
+        if ($category) {
+            $completedSubmissionsQuery->whereHas('guideline', function($query) use ($category) {
+                $query->where('type', $category);
+            });
+        }
+
+        // Apply date filters to completed submissions
         if ($year) {
             $completedSubmissionsQuery->whereYear('updated_at', $year);
             if ($month) {
@@ -269,9 +289,28 @@ class AdminController extends Controller
             });
 
         // Get actual Archive records
-        $archiveRecordsQuery = Archive::with(['submission.generatedDocuments.uploader', 'user']);
+        $archiveRecordsQuery = Archive::with(['submission.user', 'submission.guideline', 'submission.generatedDocuments.uploader', 'user']);
 
-        // Apply filters to archive records
+        // Apply search filter to archive records
+        if ($search) {
+            $archiveRecordsQuery->where(function($query) use ($search) {
+                $query->whereHas('submission.user', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                })
+                ->orWhereHas('submission', function($q) use ($search) {
+                    $q->where('submission_number', 'like', '%' . $search . '%');
+                });
+            });
+        }
+
+        // Apply category filter to archive records
+        if ($category) {
+            $archiveRecordsQuery->whereHas('submission.guideline', function($query) use ($category) {
+                $query->where('type', $category);
+            });
+        }
+
+        // Apply date filters to archive records
         if ($year) {
             $archiveRecordsQuery->whereYear('created_at', $year);
             if ($month) {
@@ -482,5 +521,100 @@ class AdminController extends Controller
                 'message' => 'Gagal mendownload file bukti pembayaran'
             ], 500);
         }
+    }
+
+    // Export archives to PDF
+    public function exportArchivesPdf()
+    {
+        $search = request('search');
+        $year = request('year');
+        $month = request('month');
+        $category = request('category');
+
+        // Get all completed submissions (status 'completed')
+        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'payment'])
+            ->where('status', 'completed');
+
+        // Apply search filter
+        if ($search) {
+            $completedSubmissionsQuery->where(function($query) use ($search) {
+                $query->whereHas('user', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                })
+                ->orWhere('submission_number', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Apply category filter
+        if ($category) {
+            $completedSubmissionsQuery->whereHas('guideline', function($query) use ($category) {
+                $query->where('type', $category);
+            });
+        }
+
+        // Apply date filters to completed submissions
+        if ($year) {
+            $completedSubmissionsQuery->whereYear('updated_at', $year);
+            if ($month) {
+                $completedSubmissionsQuery->whereMonth('updated_at', $month);
+            }
+        }
+
+        $completedSubmissions = $completedSubmissionsQuery->get();
+
+        // Get actual Archive records
+        $archiveRecordsQuery = Archive::with(['submission.user', 'submission.guideline', 'submission.payment']);
+
+        // Apply search filter to archive records
+        if ($search) {
+            $archiveRecordsQuery->where(function($query) use ($search) {
+                $query->whereHas('submission.user', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                })
+                ->orWhereHas('submission', function($q) use ($search) {
+                    $q->where('submission_number', 'like', '%' . $search . '%');
+                });
+            });
+        }
+
+        // Apply category filter to archive records
+        if ($category) {
+            $archiveRecordsQuery->whereHas('submission.guideline', function($query) use ($category) {
+                $query->where('type', $category);
+            });
+        }
+
+        // Apply date filters to archive records
+        if ($year) {
+            $archiveRecordsQuery->whereYear('created_at', $year);
+            if ($month) {
+                $archiveRecordsQuery->whereMonth('created_at', $month);
+            }
+        }
+
+        $archiveRecords = $archiveRecordsQuery->get();
+
+        // Combine all archives
+        $allArchives = $completedSubmissions->concat($archiveRecords->map(function($archive) {
+            return $archive->submission;
+        }))->sortByDesc('updated_at');
+
+        // Calculate totals
+        $totalArchives = $allArchives->count();
+        $totalPnbp = $allArchives->where('guideline.type', 'pnbp')->count();
+        $totalNonPnbp = $allArchives->where('guideline.type', 'non_pnbp')->count();
+        $totalAmount = $allArchives->where('guideline.type', 'pnbp')->sum(function($archive) {
+            return $archive->payment ? $archive->payment->amount : 0;
+        });
+
+        // Generate PDF
+        $pdf = Pdf::loadView('admin.archives.pdf', compact(
+            'allArchives', 'totalArchives', 'totalPnbp', 'totalNonPnbp', 'totalAmount',
+            'search', 'year', 'month', 'category'
+        ));
+
+        $filename = 'laporan-arsip-' . now()->format('Y-m-d-H-i-s') . '.pdf';
+
+        return $pdf->download($filename);
     }
 }
