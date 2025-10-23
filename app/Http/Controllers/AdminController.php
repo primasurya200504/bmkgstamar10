@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Response;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use App\Models\Submission; // Untuk manajemen pengajuan
 use App\Models\Payment;    // Untuk eBilling
 use App\Models\Archive;    // Untuk pengarsipan
@@ -19,7 +19,7 @@ class AdminController extends Controller
     {
         $submissions = Submission::with('user')->latest()->take(10)->get(); // Contoh data pengajuan
         $payments = Payment::with('user')->where('status', 'pending')->get(); // Pembayaran pending
-        $users = User::select('id', 'email', 'phone_number')->latest()->get();
+        $users = User::select('id', 'email', 'phone')->latest()->get(); // List user
         $archives = Archive::with('submission')->latest()->take(5)->get(); // Arsip terbaru
 
         return view('admin.dashboard', compact('submissions', 'payments', 'users', 'archives'));
@@ -28,9 +28,8 @@ class AdminController extends Controller
     // Manajemen Pengajuan (list & approve/reject)
     public function submissions()
     {
-        $submissions = Submission::with('user', 'files', 'guideline')
-            ->whereNotIn('status', ['Selesai', 'Diproses', 'completed'])
-            ->whereDoesntHave('archives')
+        $submissions = Submission::with('user', 'files')
+            ->whereNotIn('status', ['payment_pending', 'proof_uploaded', 'paid', 'verified', 'processing', 'completed', 'Selesai'])
             ->paginate(10);
         return view('admin.submissions.index', compact('submissions'));
     }
@@ -64,7 +63,7 @@ class AdminController extends Controller
         ]);
 
         $submission->update([
-            'status' => 'rejected',
+            'status' => 'Ditolak',
             'rejection_note' => $request->reason
         ]);
 
@@ -79,22 +78,29 @@ class AdminController extends Controller
     {
         $pnlpSubmissions = Submission::with('user', 'guideline')
             ->where('status', 'Diproses')
-            ->whereHas('guideline', function($query) {
+            ->whereHas('guideline', function ($query) {
                 $query->where('fee', '>', 0);
             })
             ->paginate(10);
 
         $payments = Payment::with('submission.user', 'submission.guideline')
-            ->whereIn('status', ['pending', 'proof_uploaded'])
+            ->whereIn('status', ['pending', 'uploaded', 'proof_uploaded'])
             ->paginate(10);
 
-        return view('admin.payments.index', compact('pnlpSubmissions', 'payments'));
+        $proofUploadedSubmissions = Submission::with('user', 'guideline', 'payment')
+            ->where('status', 'proof_uploaded')
+            ->whereHas('guideline', function ($query) {
+                $query->where('fee', '>', 0);
+            })
+            ->paginate(10);
+
+        return view('admin.payments.index', compact('pnlpSubmissions', 'payments', 'proofUploadedSubmissions'));
     }
 
     // Upload e-Billing/Document page - for all processed submissions
     public function uploadEBillingPage()
     {
-        $submissions = Submission::with('user', 'guideline', 'payment')
+        $submissions = Submission::with('user', 'guideline')
             ->where('status', 'Diproses')
             ->paginate(10);
 
@@ -170,13 +176,16 @@ class AdminController extends Controller
         ]);
 
         $payment->update([
-            'status' => 'pending',
+            'status' => 'rejected',
             'rejection_reason' => $request->reject_reason
         ]);
 
-        // Don't update submission status, so user can upload new proof directly
+        // Update submission status back to proof_uploaded so user can see rejection reason and upload new proof
+        if ($payment->submission) {
+            $payment->submission->update(['status' => 'proof_uploaded']);
+        }
 
-        return redirect()->back()->with('success', 'Pembayaran berhasil ditolak! User dapat mengupload ulang bukti pembayaran.');
+        return redirect()->back()->with('success', 'Pembayaran berhasil ditolak!');
     }
 
     // Manajemen Upload File Data Pengajuan (admin upload ke submission user)
@@ -197,150 +206,63 @@ class AdminController extends Controller
         return redirect()->back()->with('success', 'File dikirim ke user!');
     }
 
-    // Show archive detail
-    public function showArchive($id)
-    {
-        // First try to find an actual Archive record
-        $archive = Archive::with(['submission.user', 'submission.files', 'submission.generatedDocuments.uploader', 'submission.histories', 'submission.payment'])->find($id);
-
-        if ($archive) {
-            // It's an actual Archive record
-            $data = [
-                'id' => $archive->id,
-                'submission' => $archive->submission->load('guideline', 'files', 'generatedDocuments.uploader', 'histories', 'payment'),
-                'archive_date' => $archive->archive_date,
-                'notes' => $archive->notes,
-                'created_at' => $archive->created_at,
-            ];
-        } else {
-            // Try to find a completed submission with this ID
-            $submission = Submission::with(['user', 'guideline', 'files', 'generatedDocuments.uploader', 'histories', 'payment'])
-                ->where('status', 'completed')
-                ->find($id);
-
-            if (!$submission) {
-                abort(404, 'Archive not found');
-            }
-
-            // Create pseudo-archive data for completed submission
-            $data = [
-                'id' => $submission->id,
-                'submission' => $submission,
-                'archive_date' => $submission->updated_at,
-                'notes' => 'Pengajuan selesai diproses dan diarsipkan',
-                'created_at' => $submission->created_at,
-            ];
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
-
     // Manajemen Pengarsipan (list semua proses & file)
-    public function archives()
+    public function archives(Request $request)
     {
-        $search = request('search');
-        $year = request('year');
-        $month = request('month');
-        $category = request('category');
+        // Get actual Archive records only (avoid duplicates with completed submissions)
+        $archiveQuery = Archive::with(['submission.generatedDocuments', 'submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'user']);
 
-        // Get all completed submissions (status 'completed') that don't have archive records
-        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'generatedDocuments.uploader', 'payment', 'files'])
-            ->where('status', 'completed')
-            ->whereDoesntHave('archives');
+        // Apply filters
+        $search = $request->get('search');
+        $year = $request->get('year');
+        $month = $request->get('month');
+        $category = $request->get('category');
 
-        // Apply search filter
         if ($search) {
-            $completedSubmissionsQuery->where(function($query) use ($search) {
-                $query->whereHas('user', function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%');
-                })
-                ->orWhere('submission_number', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Apply category filter
-        if ($category) {
-            $completedSubmissionsQuery->whereHas('guideline', function($query) use ($category) {
-                $query->where('type', $category);
-            });
-        }
-
-        // Apply date filters to completed submissions
-        if ($year) {
-            $completedSubmissionsQuery->whereYear('updated_at', $year);
-            if ($month) {
-                $completedSubmissionsQuery->whereMonth('updated_at', $month);
-            }
-        }
-
-        $completedSubmissions = $completedSubmissionsQuery->get()
-            ->map(function ($submission) {
-                // Create a pseudo-archive object for completed submissions
-                return (object) [
-                    'id' => $submission->id,
-                    'submission' => $submission,
-                    'user' => $submission->user,
-                    'archive_date' => $submission->updated_at,
-                    'created_at' => $submission->created_at,
-                    'is_archive' => false // Flag to distinguish from actual Archive records
-                ];
-            });
-
-        // Get actual Archive records
-        $archiveRecordsQuery = Archive::with(['submission.user', 'submission.guideline', 'submission.generatedDocuments.uploader', 'user']);
-
-        // Apply search filter to archive records
-        if ($search) {
-            $archiveRecordsQuery->where(function($query) use ($search) {
-                $query->whereHas('submission.user', function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%');
-                })
-                ->orWhereHas('submission', function($q) use ($search) {
+            $archiveQuery->where(function ($query) use ($search) {
+                $query->whereHas('submission', function ($q) use ($search) {
                     $q->where('submission_number', 'like', '%' . $search . '%');
+                })->orWhereHas('submission.user', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
                 });
             });
         }
 
-        // Apply category filter to archive records
+        if ($year) {
+            $archiveQuery->whereYear('created_at', $year);
+        }
+
+        if ($month) {
+            $archiveQuery->whereMonth('created_at', $month);
+        }
+
         if ($category) {
-            $archiveRecordsQuery->whereHas('submission.guideline', function($query) use ($category) {
+            $archiveQuery->whereHas('submission.guideline', function ($query) use ($category) {
                 $query->where('type', $category);
             });
         }
 
-        // Apply date filters to archive records
-        if ($year) {
-            $archiveRecordsQuery->whereYear('created_at', $year);
-            if ($month) {
-                $archiveRecordsQuery->whereMonth('created_at', $month);
-            }
-        }
+        $archiveRecords = $archiveQuery->get()->map(function ($archive) {
+            $archive->is_archive = true; // Flag for actual Archive records
+            $archive->files = $archive->submission ? $archive->submission->files : collect();
+            $archive->generatedDocuments = $archive->submission ? $archive->submission->generatedDocuments : collect();
+            return $archive;
+        });
 
-        $archiveRecords = $archiveRecordsQuery->get()
-            ->map(function ($archive) {
-                $archive->is_archive = true; // Flag for actual Archive records
-                return $archive;
-            });
-
-        // Combine and sort by creation date (newest first)
-        $allArchives = $completedSubmissions->concat($archiveRecords)
-            ->sortByDesc('created_at')
-            ->values();
-
-        // Paginate the combined collection
+        // Paginate the filtered archive records
         $perPage = 10;
-        $currentPage = request()->get('page', 1);
+        $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
         $archives = new \Illuminate\Pagination\LengthAwarePaginator(
-            $allArchives->slice($offset, $perPage),
-            $allArchives->count(),
+            $archiveRecords->slice($offset, $perPage),
+            $archiveRecords->count(),
             $perPage,
             $currentPage,
-            ['path' => request()->url(), 'pageName' => 'page']
+            ['path' => $request->url(), 'pageName' => 'page']
         );
+
+        // Append query parameters to pagination links
+        $archives->appends($request->query());
 
         return view('admin.archives.index', compact('archives'));
     }
@@ -348,7 +270,7 @@ class AdminController extends Controller
     // Manajemen Pengguna (list email & no HP)
     public function users()
     {
-        $users = User::select('id', 'name', 'email', 'phone_number', 'role', 'created_at')->paginate(20);
+        $users = User::select('id', 'name', 'email', 'phone')->paginate(20);
         return view('admin.users.index', compact('users'));
     }
 
@@ -363,26 +285,19 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:admin,user',
-            'phone_number' => 'nullable|string|max:20',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|confirmed|min:8',
+            'role' => 'required|in:admin,user'
         ]);
 
         User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'role' => $request->role,
-            'phone_number' => $request->phone_number,
+            'phone' => $request->phone,
+            'password' => Hash::make($request->password),
+            'role' => $request->role
         ]);
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengguna berhasil ditambahkan!'
-            ]);
-        }
 
         return redirect()->route('admin.users')->with('success', 'Pengguna berhasil ditambahkan!');
     }
@@ -398,24 +313,17 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'password' => 'nullable|string|min:8|confirmed',
-            'role' => 'required|in:admin,user',
-            'phone_number' => 'nullable|string|max:20',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+            'role' => 'required|in:admin,user'
         ]);
 
-        $updateData = [
+        $user->update([
             'name' => $request->name,
             'email' => $request->email,
-            'role' => $request->role,
-            'phone_number' => $request->phone_number,
-        ];
-
-        if ($request->filled('password')) {
-            $updateData['password'] = bcrypt($request->password);
-        }
-
-        $user->update($updateData);
+            'phone' => $request->phone,
+            'role' => $request->role
+        ]);
 
         return redirect()->route('admin.users')->with('success', 'Pengguna berhasil diperbarui!');
     }
@@ -423,13 +331,14 @@ class AdminController extends Controller
     // Delete user
     public function destroy(User $user)
     {
-        // Prevent deleting admin users or users with submissions
-        if ($user->role === 'admin') {
-            return redirect()->route('admin.users')->with('error', 'Tidak dapat menghapus pengguna admin!');
+        // Prevent deleting the current admin user
+        if ($user->id === Auth::id()) {
+            return redirect()->back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri!');
         }
 
+        // Check if user has submissions
         if ($user->submissions()->count() > 0) {
-            return redirect()->route('admin.users')->with('error', 'Tidak dapat menghapus pengguna yang memiliki pengajuan!');
+            return redirect()->back()->with('error', 'Pengguna memiliki pengajuan aktif dan tidak dapat dihapus!');
         }
 
         $user->delete();
@@ -449,17 +358,14 @@ class AdminController extends Controller
 
             $filePath = storage_path('app/public/' . $file->file_path);
 
-            if (!Storage::disk('public')->exists($file->file_path)) {
+            if (!file_exists($filePath)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'File tidak ditemukan'
                 ], 404);
             }
 
-            return response()->download($filePath, $file->file_name, [
-                'Content-Type' => $file->file_type ?: mime_content_type($filePath),
-                'Content-Disposition' => 'attachment; filename="' . $file->file_name . '"'
-            ]);
+            return response()->download($filePath, $file->file_name);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -468,156 +374,122 @@ class AdminController extends Controller
         }
     }
 
-    // Download e-billing file
-    public function downloadEBilling($paymentId)
+    // Download payment proof
+    public function downloadPaymentProof($id)
     {
         try {
-            $payment = Payment::findOrFail($paymentId);
+            $payment = Payment::findOrFail($id);
 
-            if (!$payment->e_billing_path || !Storage::disk('public')->exists($payment->e_billing_path)) {
+            if (!$payment->payment_proof) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'File e-Billing tidak ditemukan'
+                    'message' => 'Bukti pembayaran tidak ditemukan'
                 ], 404);
             }
 
-            $filePath = storage_path('app/public/' . $payment->e_billing_path);
-            $fileName = $payment->e_billing_filename ?: basename($payment->e_billing_path);
+            $filePath = storage_path('app/public/' . $payment->payment_proof);
 
-            return response()->download($filePath, $fileName, [
-                'Content-Type' => mime_content_type($filePath),
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mendownload file e-Billing'
-            ], 500);
-        }
-    }
-
-    // Download payment proof file
-    public function downloadPaymentProof($paymentId)
-    {
-        try {
-            $payment = Payment::findOrFail($paymentId);
-
-            if (!$payment->payment_proof || !Storage::disk('public')->exists($payment->payment_proof)) {
+            if (!file_exists($filePath)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'File bukti pembayaran tidak ditemukan'
                 ], 404);
             }
 
-            $filePath = storage_path('app/public/' . $payment->payment_proof);
-            $fileName = basename($payment->payment_proof);
-
-            return response()->download($filePath, $fileName, [
-                'Content-Type' => mime_content_type($filePath),
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"'
-            ]);
+            return response()->download($filePath, basename($payment->payment_proof));
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mendownload file bukti pembayaran'
+                'message' => 'Gagal mendownload bukti pembayaran'
             ], 500);
         }
     }
 
-    // Export archives to PDF
-    public function exportArchivesPdf()
+    // Export all archives to PDF (with filters)
+    public function exportArchivesPdf(Request $request)
     {
-        $search = request('search');
-        $year = request('year');
-        $month = request('month');
-        $category = request('category');
+        // Get actual Archive records only (avoid duplicates)
+        $archiveRecordsQuery = Archive::with(['submission.generatedDocuments', 'submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'user']);
 
-        // Get all completed submissions (status 'completed') that don't have archive records
-        $completedSubmissionsQuery = Submission::with(['user', 'guideline', 'payment', 'files', 'generatedDocuments'])
-            ->where('status', 'completed')
-            ->whereDoesntHave('archives');
+        // Apply filters
+        $search = $request->get('search');
+        $year = $request->get('year');
+        $month = $request->get('month');
+        $category = $request->get('category');
 
-        // Apply search filter
         if ($search) {
-            $completedSubmissionsQuery->where(function($query) use ($search) {
-                $query->whereHas('user', function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%');
-                })
-                ->orWhere('submission_number', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Apply category filter
-        if ($category) {
-            $completedSubmissionsQuery->whereHas('guideline', function($query) use ($category) {
-                $query->where('type', $category);
-            });
-        }
-
-        // Apply date filters to completed submissions
-        if ($year) {
-            $completedSubmissionsQuery->whereYear('updated_at', $year);
-            if ($month) {
-                $completedSubmissionsQuery->whereMonth('updated_at', $month);
-            }
-        }
-
-        $completedSubmissions = $completedSubmissionsQuery->get();
-
-        // Get actual Archive records
-        $archiveRecordsQuery = Archive::with(['submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'submission.generatedDocuments']);
-
-        // Apply search filter to archive records
-        if ($search) {
-            $archiveRecordsQuery->where(function($query) use ($search) {
-                $query->whereHas('submission.user', function($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%');
-                })
-                ->orWhereHas('submission', function($q) use ($search) {
+            $archiveRecordsQuery->where(function ($query) use ($search) {
+                $query->whereHas('submission', function ($q) use ($search) {
                     $q->where('submission_number', 'like', '%' . $search . '%');
+                })->orWhereHas('user', function ($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
                 });
             });
         }
 
-        // Apply category filter to archive records
+        if ($year) {
+            $archiveRecordsQuery->whereYear('created_at', $year);
+        }
+
+        if ($month) {
+            $archiveRecordsQuery->whereMonth('created_at', $month);
+        }
+
         if ($category) {
-            $archiveRecordsQuery->whereHas('submission.guideline', function($query) use ($category) {
+            $archiveRecordsQuery->whereHas('submission.guideline', function ($query) use ($category) {
                 $query->where('type', $category);
             });
         }
 
-        // Apply date filters to archive records
-        if ($year) {
-            $archiveRecordsQuery->whereYear('created_at', $year);
-            if ($month) {
-                $archiveRecordsQuery->whereMonth('created_at', $month);
+        $archiveRecords = $archiveRecordsQuery->get()->map(function ($archive) {
+            $archive->is_archive = true;
+            $archive->files = $archive->submission ? $archive->submission->files : collect();
+            $archive->generatedDocuments = $archive->submission ? $archive->submission->generatedDocuments : collect();
+            // Copy submission fields to archive for PDF view
+            if ($archive->submission) {
+                $archive->submission_number = $archive->submission->submission_number ?? 'N/A';
+                $archive->purpose = $archive->submission->purpose ?? 'N/A';
+                $archive->start_date = $archive->submission->start_date;
+                $archive->end_date = $archive->submission->end_date;
+                $archive->status = $archive->submission->status ?? 'Selesai';
+                $archive->created_at = $archive->submission->created_at;
+                $archive->updated_at = $archive->submission->updated_at;
+                $archive->user = $archive->submission->user;
+                $archive->guideline = $archive->submission->guideline;
+                $archive->payment = $archive->submission->payment;
             }
-        }
+            return $archive;
+        });
 
-        $archiveRecords = $archiveRecordsQuery->get();
+        // Sort by creation date (newest first)
+        $allArchives = $archiveRecords->sortByDesc('created_at')->values();
 
-        // Combine all archives - only include submissions from archive records
-        $allArchives = $archiveRecords->map(function($archive) {
-            return $archive->submission ?? $archive;
-        })->concat($completedSubmissions)->sortByDesc('updated_at');
-
-        // Calculate totals
+        // Calculate summary
         $totalArchives = $allArchives->count();
-        $totalPnbp = $allArchives->where('guideline.type', 'pnbp')->count();
-        $totalNonPnbp = $allArchives->where('guideline.type', 'non_pnbp')->count();
-        $totalAmount = $allArchives->where('guideline.type', 'pnbp')->sum(function($archive) {
-            return $archive->payment ? $archive->payment->amount : 0;
+        $totalPnbp = $allArchives->filter(function ($archive) {
+            return $archive->submission && $archive->submission->guideline && $archive->submission->guideline->type == 'pnbp';
+        })->count();
+        $totalNonPnbp = $allArchives->filter(function ($archive) {
+            return $archive->submission && $archive->submission->guideline && $archive->submission->guideline->type == 'non_pnbp';
+        })->count();
+        $totalAmount = $allArchives->sum(function ($archive) {
+            return $archive->submission && $archive->submission->guideline ? $archive->submission->guideline->fee : 0;
         });
 
         // Generate PDF
-        $pdf = Pdf::loadView('admin.archives.pdf', compact(
-            'allArchives', 'totalArchives', 'totalPnbp', 'totalNonPnbp', 'totalAmount',
-            'search', 'year', 'month', 'category'
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.archives.pdf', compact(
+            'allArchives',
+            'totalArchives',
+            'totalPnbp',
+            'totalNonPnbp',
+            'totalAmount',
+            'search',
+            'year',
+            'month',
+            'category'
         ));
 
-        $filename = 'laporan-arsip-' . now()->format('Y-m-d-H-i-s') . '.pdf';
-
-        return $pdf->download($filename);
+        return $pdf->download('laporan-arsip-' . now()->format('Y-m-d-H-i-s') . '.pdf');
     }
 
     // Export selected archives to PDF
@@ -625,43 +497,191 @@ class AdminController extends Controller
     {
         $request->validate([
             'selected_archives' => 'required|array|min:1',
-            'selected_archives.*' => 'integer|exists:archives,id'
+            'selected_archives.*' => 'integer'
         ]);
 
         $selectedIds = $request->selected_archives;
 
-        // Get selected Archive records with all necessary relationships
-        $archiveRecords = Archive::with(['submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'submission.generatedDocuments'])
+        // Get actual Archive records only (avoid duplicates)
+        $archiveRecords = Archive::with(['submission.generatedDocuments', 'submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'user'])
             ->whereIn('id', $selectedIds)
-            ->get();
+            ->get()
+            ->map(function ($archive) {
+                $archive->is_archive = true;
+                $archive->files = $archive->submission ? $archive->submission->files : collect();
+                $archive->generatedDocuments = $archive->submission ? $archive->submission->generatedDocuments : collect();
+                // Copy submission fields to archive for PDF view
+                if ($archive->submission) {
+                    $archive->submission_number = $archive->submission->submission_number ?? 'N/A';
+                    $archive->purpose = $archive->submission->purpose ?? 'N/A';
+                    $archive->start_date = $archive->submission->start_date;
+                    $archive->end_date = $archive->submission->end_date;
+                    $archive->status = $archive->submission->status ?? 'Selesai';
+                    $archive->created_at = $archive->submission->created_at;
+                    $archive->updated_at = $archive->submission->updated_at;
+                    $archive->user = $archive->submission->user;
+                    $archive->guideline = $archive->submission->guideline;
+                    $archive->payment = $archive->submission->payment;
+                }
+                return $archive;
+            });
 
-        // Convert to the format expected by PDF template
-        $allArchives = $archiveRecords->map(function($archive) {
-            return $archive->submission ?? $archive;
-        })->sortByDesc('updated_at');
+        // Sort selected archives
+        $selectedArchives = $archiveRecords->sortByDesc('created_at')->values();
 
-        // Calculate totals for selected archives
-        $totalArchives = $allArchives->count();
-        $totalPnbp = $allArchives->where('guideline.type', 'pnbp')->count();
-        $totalNonPnbp = $allArchives->where('guideline.type', 'non_pnbp')->count();
-        $totalAmount = $allArchives->where('guideline.type', 'pnbp')->sum(function($archive) {
-            return $archive->payment ? $archive->payment->amount : 0;
+        if ($selectedArchives->isEmpty()) {
+            return redirect()->back()->with('error', 'Tidak ada arsip yang dipilih untuk diekspor.');
+        }
+
+        // Calculate summary for selected
+        $totalArchives = $selectedArchives->count();
+        $totalPnbp = $selectedArchives->filter(function ($archive) {
+            return $archive->submission && $archive->submission->guideline && $archive->submission->guideline->type == 'pnbp';
+        })->count();
+        $totalNonPnbp = $selectedArchives->filter(function ($archive) {
+            return $archive->submission && $archive->submission->guideline && $archive->submission->guideline->type == 'non_pnbp';
+        })->count();
+        $totalAmount = $selectedArchives->sum(function ($archive) {
+            return $archive->submission && $archive->submission->guideline ? $archive->submission->guideline->fee : 0;
         });
 
-        // Set default values for filter variables (not used in selected export)
-        $search = null;
-        $year = null;
-        $month = null;
-        $category = null;
-
         // Generate PDF
-        $pdf = Pdf::loadView('admin.archives.pdf', compact(
-            'allArchives', 'totalArchives', 'totalPnbp', 'totalNonPnbp', 'totalAmount',
-            'search', 'year', 'month', 'category'
-        ));
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.archives.pdf', [
+            'allArchives' => $selectedArchives,
+            'totalArchives' => $totalArchives,
+            'totalPnbp' => $totalPnbp,
+            'totalNonPnbp' => $totalNonPnbp,
+            'totalAmount' => $totalAmount,
+            'search' => null,
+            'year' => null,
+            'month' => null,
+            'category' => null
+        ]);
 
-        $filename = 'laporan-arsip-terpilih-' . now()->format('Y-m-d-H-i-s') . '.pdf';
+        return $pdf->download('arsip-terpilih-' . now()->format('Y-m-d-H-i-s') . '.pdf');
+    }
 
-        return $pdf->download($filename);
+    // Show archive detail
+    public function showArchive($id)
+    {
+        try {
+            // Try to find as actual Archive record
+            $archiveRecord = Archive::with(['submission.generatedDocuments', 'submission.user', 'submission.guideline', 'submission.payment', 'submission.files', 'submission.histories', 'user'])
+                ->where('id', $id)
+                ->first();
+
+            if (!$archiveRecord) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Arsip tidak ditemukan'
+                ], 404);
+            }
+
+            $archive = $archiveRecord;
+            $archive->is_archive = true;
+            $archive->files = $archive->submission ? $archive->submission->files : collect();
+            $archive->generatedDocuments = $archive->submission ? $archive->submission->generatedDocuments : collect();
+            $archive->histories = $archive->submission ? $archive->submission->histories : collect();
+
+            // Format data for response
+            $archiveData = [
+                'id' => $archive->id,
+                'submission' => [
+                    'id' => $archive->submission->id ?? $archive->id,
+                    'submission_number' => $archive->submission->submission_number ?? 'N/A',
+                    'user' => $archive->submission->user ? [
+                        'name' => $archive->submission->user->name ?? 'N/A',
+                        'email' => $archive->submission->user->email ?? 'N/A',
+                        'phone' => $archive->submission->user->phone ?? 'N/A'
+                    ] : null,
+                    'guideline' => $archive->submission->guideline ? [
+                        'title' => $archive->submission->guideline->title ?? 'N/A',
+                        'type' => $archive->submission->guideline->type ?? 'non_pnbp',
+                        'fee' => $archive->submission->guideline->fee ?? 0
+                    ] : null,
+                    'purpose' => $archive->submission->purpose ?? 'N/A',
+                    'start_date' => $archive->submission->start_date ? \Carbon\Carbon::parse($archive->submission->start_date)->format('d/m/Y') : 'N/A',
+                    'end_date' => $archive->submission->end_date ? \Carbon\Carbon::parse($archive->submission->end_date)->format('d/m/Y') : 'N/A',
+                    'status' => $archive->submission->status ?? 'Selesai',
+                    'created_at' => $archive->submission->created_at ? \Carbon\Carbon::parse($archive->submission->created_at)->format('d/m/Y H:i') : 'N/A',
+                    'updated_at' => $archive->submission->updated_at ? \Carbon\Carbon::parse($archive->submission->updated_at)->format('d/m/Y H:i') : 'N/A',
+                    'payment' => $archive->submission->payment ? [
+                        'id' => $archive->submission->payment->id,
+                        'amount' => $archive->submission->payment->amount ?? 0,
+                        'status' => $archive->submission->payment->status ?? 'pending',
+                        'method' => $archive->submission->payment->payment_method ?? null,
+                        'reference' => $archive->submission->payment->payment_reference ?? null,
+                        'paid_at' => $archive->submission->payment->paid_at ? \Carbon\Carbon::parse($archive->submission->payment->paid_at)->format('d/m/Y H:i') : null,
+                        'e_billing_path' => $archive->submission->payment->e_billing_path ?? null,
+                        'e_billing_filename' => $archive->submission->payment->e_billing_filename ?? null
+                    ] : null,
+                    'files' => $archive->files ? $archive->files->map(function ($file) {
+                        return [
+                            'id' => $file->id,
+                            'file_name' => $file->file_name ?? 'Unknown',
+                            'document_name' => $file->document_name ?? 'Document',
+                            'file_size' => $file->file_size ?? 0,
+                            'file_size_human' => $this->formatFileSize($file->file_size ?? 0),
+                            'file_type' => $file->file_type ?? 'application/octet-stream',
+                            'created_at' => $file->created_at ? \Carbon\Carbon::parse($file->created_at)->format('d/m/Y H:i') : 'N/A'
+                        ];
+                    }) : [],
+                    'generatedDocuments' => $archive->generatedDocuments ? $archive->generatedDocuments->map(function ($doc) {
+                        return [
+                            'id' => $doc->id,
+                            'document_name' => $doc->document_name ?? 'Document',
+                            'document_type' => $doc->document_type ?? 'Unknown',
+                            'file_size' => $doc->file_size ?? 0,
+                            'formatted_file_size' => $this->formatFileSize($doc->file_size ?? 0),
+                            'uploader_name' => 'Admin',
+                            'created_at' => $doc->created_at ? \Carbon\Carbon::parse($doc->created_at)->format('d/m/Y H:i') : 'N/A'
+                        ];
+                    }) : [],
+                    'histories' => $archive->histories ? $archive->histories->map(function ($history) {
+                        return [
+                            'title' => $history->title ?? 'Unknown Action',
+                            'description' => $history->description ?? 'No description',
+                            'actor' => $history->actor ? $history->actor->name : 'System',
+                            'created_at' => $history->created_at ? \Carbon\Carbon::parse($history->created_at)->format('d/m/Y H:i') : 'N/A'
+                        ];
+                    }) : []
+                ],
+                'archive_date' => $archive->archive_date ? \Carbon\Carbon::parse($archive->archive_date)->format('d/m/Y H:i') : ($archive->updated_at ? \Carbon\Carbon::parse($archive->updated_at)->format('d/m/Y H:i') : null),
+                'notes' => $archive->notes ?? 'Pengajuan selesai diproses dan diarsipkan',
+                'is_archive' => $archive->is_archive ?? false
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $archiveData
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error loading archive detail: ' . $e->getMessage(), [
+                'archive_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memuat detail arsip: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Helper method to format file size
+    private function formatFileSize($bytes)
+    {
+        if ($bytes === null || $bytes == 0) {
+            return '0 bytes';
+        }
+        if ($bytes >= 1073741824) {
+            return number_format($bytes / 1073741824, 2) . ' GB';
+        } elseif ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2) . ' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 2) . ' KB';
+        } else {
+            return $bytes . ' bytes';
+        }
     }
 }

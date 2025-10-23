@@ -1,27 +1,23 @@
-# TODO: Add "Kategori Data" PNBP/Non-PNBP to Admin Panel
+# TODO: Perbaikan Fitur Filter dan Export PDF di Arsip & Laporan
 
-## Information Gathered
-- Guidelines model has 'type' field with enum('pnbp', 'non_pnbp')
-- Submissions are linked to guidelines via guideline_id, so category inherits from guideline->type
-- Payments are linked to submissions, so category is submission->guideline->type
-- Data-uploads view shows submissions, so category from submission->guideline->type
-- Current views:
-  - guidelines/index.blade.php: Already displays "Tipe" column
-  - submissions/show.blade.php: Already displays "Tipe" from guideline
-  - Other index views (submissions, payments, data-uploads) do not display category
+## Tugas Utama
 
-## Plan
-- Add "Kategori Data" column to submissions/index.blade.php table
-- Add "Kategori Data" column to payments/index.blade.php table
-- Add "Kategori Data" column to data-uploads/index.blade.php table
-- No database changes needed as data exists via relationships
+-   [x] Perbaiki filter (cari, tahun, bulan, kategori) agar berfungsi di halaman arsip
+-   [x] Perbaiki export PDF terpilih agar berfungsi saat checklist pengajuan
 
-## Dependent Files to Edit
-- resources/views/admin/submissions/index.blade.php
-- resources/views/admin/payments/index.blade.php
-- resources/views/admin/data-uploads/index.blade.php
+## Langkah-langkah
 
-## Followup Steps
-- Verify category display in all modified views
-- Test navigation and ensure no errors
-- Check if all data has proper guideline relationships
+1. [x] Update method `archives()` di AdminController untuk menerapkan filter sebelum pagination
+2. [x] Perbaiki struktur form export di view agar checkbox termasuk dalam form
+3. [x] Test filter dengan berbagai parameter
+4. [x] Test export PDF terpilih dengan item yang dipilih
+5. [x] Pastikan pagination bekerja dengan filter yang diterapkan
+
+## File yang Terpengaruh
+
+-   `app/Http/Controllers/AdminController.php` - update method archives()
+-   `resources/views/admin/archives/index.blade.php` - perbaiki struktur form export
+
+## Status
+
+✅ **SELESAI** - Semua fitur filter dan export PDF terpilih telah diperbaiki dan berfungsi dengan benar.

@@ -9,16 +9,16 @@ if (!function_exists('safe_json_decode')) {
         if (is_null($value)) {
             return $default;
         }
-        
+
         if (is_array($value)) {
             return $value;
         }
-        
+
         if (is_string($value)) {
             $decoded = json_decode($value, true);
             return is_array($decoded) ? $decoded : $default;
         }
-        
+
         return $default;
     }
 }
@@ -44,7 +44,7 @@ if (!function_exists('get_status_text')) {
             'Diproses' => 'Menunggu Upload e-Billing',
             'verified' => 'Terverifikasi',
             'payment_pending' => 'Menunggu Pembayaran',
-            'proof_uploaded' => 'Bukti Pembayaran Diupload',
+            'proof_uploaded' => 'Bukti Pembayaran Diupload - Menunggu Verifikasi',
             'paid' => 'Sudah Bayar',
             'processing' => 'Sedang Diproses',
             'completed' => 'Selesai',

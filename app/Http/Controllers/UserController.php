@@ -38,7 +38,7 @@ class UserController extends Controller
             // Enhanced statistics
             $stats = [
                 'pending' => $submissions->where('status', 'pending')->count(),
-                'in_process' => $submissions->whereIn('status', ['verified', 'payment_pending', 'paid', 'processing'])->count(),
+                'in_process' => $submissions->whereIn('status', ['Diproses', 'verified', 'payment_pending', 'proof_uploaded', 'paid', 'processing'])->count(),
                 'completed' => $submissions->where('status', 'completed')->count(),
                 'rejected' => $submissions->where('status', 'rejected')->count(),
                 'total' => $submissions->count()
@@ -64,22 +64,7 @@ class UserController extends Controller
                 return $guideline;
             });
 
-            // Notifications - kosong untuk sekarang
-            $notifications = collect();
-
-            Log::info('User Dashboard loaded successfully', [
-                'user_id' => $user->id,
-                'stats' => $stats,
-                'submissions_count' => $submissions->count(),
-                'guidelines_count' => $guidelines->count()
-            ]);
-
-            return view('user.dashboard', compact(
-                'stats',
-                'recentActivities',
-                'guidelines',
-                'notifications'
-            ));
+            return view('user.dashboard', compact('submissions', 'stats', 'recentActivities', 'guidelines'));
         } catch (\Exception $e) {
             Log::error('User Dashboard Error: ' . $e->getMessage(), [
                 'user_id' => Auth::id(),
@@ -93,14 +78,9 @@ class UserController extends Controller
                 $guideline->required_documents = safe_json_decode($guideline->required_documents, []);
                 return $guideline;
             });
-            $notifications = collect();
+            $submissions = collect();
 
-            return view('user.dashboard', compact(
-                'stats',
-                'recentActivities',
-                'guidelines',
-                'notifications'
-            ))->with('error', 'Error loading dashboard: ' . $e->getMessage());
+            return view('user.dashboard', compact('submissions', 'stats', 'recentActivities', 'guidelines'))->with('error', 'Error loading dashboard: ' . $e->getMessage());
         }
     }
 
@@ -171,13 +151,13 @@ class UserController extends Controller
             $user = Auth::user();
             $submission = Submission::where('user_id', $user->id)
                 ->where('id', $id)
-                ->with(['guideline', 'payment', 'histories' => function($query) {
-                    $query->with(['actor' => function($q) {
+                ->with(['guideline', 'payment', 'histories' => function ($query) {
+                    $query->with(['actor' => function ($q) {
                         $q->select('id', 'name');
                     }])->orderBy('created_at', 'desc')->limit(10);
-                }, 'generatedDocuments' => function($query) {
+                }, 'generatedDocuments' => function ($query) {
                     $query->orderBy('created_at', 'desc')->limit(10);
-                }, 'files' => function($query) {
+                }, 'files' => function ($query) {
                     $query->orderBy('created_at', 'desc')->limit(10);
                 }])
                 ->first();
@@ -387,17 +367,10 @@ class UserController extends Controller
             // Decode required documents safely
             $requiredDocs = safe_json_decode($guideline->required_documents, []);
 
-            DB::beginTransaction();
-
             // Generate UNIQUE submission number dengan atomic increment
-            DB::beginTransaction();
-
             try {
-                // Lock the submissions table to prevent race conditions
-                $lastSubmission = Submission::lockForUpdate()
-                    ->orderBy('id', 'desc')
-                    ->first();
-
+                // Use a simpler approach - get the next ID from database
+                $lastSubmission = Submission::orderBy('id', 'desc')->first();
                 $nextNumber = $lastSubmission ? $lastSubmission->id + 1 : 1;
 
                 $submissionNumber = 'BMKG-' . strtoupper($guideline->type) . '-' .
@@ -411,15 +384,9 @@ class UserController extends Controller
                     $submissionNumber = 'BMKG-' . strtoupper($guideline->type) . '-' .
                         date('mdHis') . '-' . str_pad($user->id, 3, '0', STR_PAD_LEFT);
                 }
-
-                DB::commit(); // Commit the lock transaction
             } catch (\Exception $e) {
-                DB::rollBack();
                 throw new \Exception('Gagal generate nomor pengajuan unik: ' . $e->getMessage());
             }
-
-            // Start new transaction for the actual submission creation
-            DB::beginTransaction();
 
             // Create submission with additional safety checks
             $submissionData = [
@@ -435,6 +402,8 @@ class UserController extends Controller
                 'updated_at' => now()
             ];
 
+            // Use DB transaction for atomic operation
+            DB::beginTransaction();
             $submissionId = DB::table('submissions')->insertGetId($submissionData);
 
             if (!$submissionId) {
@@ -477,21 +446,16 @@ class UserController extends Controller
                 'actor_type' => 'user',
                 'action' => 'submitted',
                 'title' => 'Pengajuan Disubmit',
-                'description' => 'Pengajuan telah disubmit dan menunggu verifikasi admin'
+                'description' => 'Pengajuan telah disubmit dan menunggu verifikasi admin',
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
-            // Create payment record if PNBP
-            if ($guideline->type === 'pnbp' && $guideline->fee > 0) {
-                Payment::create([
-                    'submission_id' => $submission->id,
-                    'amount' => $guideline->fee,
-                    'status' => 'pending'
-                ]);
-
-                $submission->update(['status' => 'payment_pending']);
-            }
-
+            // Commit transaction
             DB::commit();
+
+            // NOTE: Payment record creation is now handled by AdminController::uploadEBilling()
+            // after admin verification, not automatically during user submission
 
             Log::info('Submission created successfully', [
                 'submission_id' => $submission->id,
@@ -501,10 +465,11 @@ class UserController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pengajuan berhasil dikirim',
+                'message' => 'Pengajuan berhasil dikirim! Silakan tunggu verifikasi dari admin.',
                 'data' => $submission->load('guideline')
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             Log::error('Validation error creating submission', ['errors' => $e->errors()]);
             return response()->json([
                 'success' => false,
@@ -589,7 +554,9 @@ class UserController extends Controller
                 'actor_type' => 'user',
                 'action' => 'payment_uploaded',
                 'title' => 'Bukti Pembayaran Diupload',
-                'description' => 'User telah mengupload bukti pembayaran dengan metode: ' . $request->payment_method
+                'description' => 'User telah mengupload bukti pembayaran dengan metode: ' . $request->payment_method,
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
             DB::commit();
@@ -948,7 +915,9 @@ class UserController extends Controller
                 'actor_type' => 'user',
                 'action' => 'files_uploaded',
                 'title' => 'File Ditambahkan',
-                'description' => 'User menambahkan file baru ke pengajuan yang ditolak'
+                'description' => 'User menambahkan file baru ke pengajuan yang ditolak',
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
             DB::commit();
@@ -1008,7 +977,9 @@ class UserController extends Controller
                 'actor_type' => 'user',
                 'action' => 'resubmitted',
                 'title' => 'Pengajuan Dikirim Ulang',
-                'description' => 'User mengirim ulang pengajuan yang sebelumnya ditolak'
+                'description' => 'User mengirim ulang pengajuan yang sebelumnya ditolak',
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
             DB::commit();
@@ -1105,7 +1076,7 @@ class UserController extends Controller
                     'status' => $submission->status,
                     'status_label' => $this->getStatusLabel($submission->status),
                     'progress_percentage' => $this->calculateProgressPercentage($submission->status),
-                    'can_pay' => $submission->status === 'payment_pending' && $guideline && $guideline->fee > 0,
+                    'can_pay' => ($submission->status === 'payment_pending' || $submission->status === 'proof_uploaded') && $guideline && $guideline->fee > 0,
                     'can_download' => $submission->status === 'completed'
                 ]
             ]);
@@ -1130,7 +1101,7 @@ class UserController extends Controller
             'Diproses' => 'Menunggu Upload e-Billing',
             'verified' => 'Terverifikasi',
             'payment_pending' => 'Menunggu Pembayaran',
-            'proof_uploaded' => 'Bukti Pembayaran Diupload - Menunggu Verifikasi',
+            'proof_uploaded' => 'Bukti Pembayaran Diupload',
             'paid' => 'Pembayaran Diterima',
             'processing' => 'Sedang Diproses',
             'completed' => 'Selesai',
@@ -1149,6 +1120,7 @@ class UserController extends Controller
             'pending' => 10,
             'verified' => 25,
             'payment_pending' => 40,
+            'proof_uploaded' => 55,
             'paid' => 60,
             'processing' => 80,
             'completed' => 100,

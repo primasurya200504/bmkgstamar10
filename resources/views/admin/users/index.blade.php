@@ -3,55 +3,88 @@
 @section('content')
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-            <div class="p-6 text-gray-900">
-                <div class="flex justify-between items-center mb-6">
-                    <h1 class="text-2xl font-bold text-gray-800">Manajemen Pengguna</h1>
-                    <div class="flex space-x-2">
-                        <a href="{{ route('admin.users.create') }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                            Tambah Pengguna
-                        </a>
-                        <a href="{{ route('admin.dashboard') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Kembali ke Dashboard
-                        </a>
-                    </div>
+        <div class="page-header">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="page-title">Manajemen Pengguna</h1>
+                    <p class="page-subtitle">Kelola akun pengguna dan hak akses sistem</p>
                 </div>
+                <div class="flex space-x-3">
+                    <a href="{{ route('admin.users.create') }}" class="btn-modern btn-success">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Tambah Pengguna
+                    </a>
+                    <a href="{{ route('admin.dashboard') }}" class="btn-modern btn-secondary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Kembali ke Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
 
+        <div class="card-modern">
+            <div class="p-6">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-50">
+                    <table class="modern-table min-w-full">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No HP</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bergabung</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                <th>ID</th>
+                                <th>Nama</th>
+                                <th>Email</th>
+                                <th>No HP</th>
+                                <th>Role</th>
+                                <th>Bergabung</th>
+                                <th>Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody>
                             @foreach($users as $user)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $user->id }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->email }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->phone_number ?? 'N/A' }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            @if($user->role == 'admin') bg-purple-100 text-purple-800
-                                            @else bg-blue-100 text-blue-800 @endif">
+                                <tr>
+                                    <td class="font-medium text-gray-900">#{{ $user->id }}</td>
+                                    <td>
+                                        <div class="flex items-center">
+                                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold mr-3">
+                                                {{ strtoupper(substr($user->name, 0, 1)) }}
+                                            </div>
+                                            <div>
+                                                <div class="font-medium text-gray-900">{{ $user->name }}</div>
+                                                <div class="text-sm text-gray-500">{{ $user->email }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="font-medium">{{ $user->email }}</td>
+                                    <td class="text-gray-600">{{ $user->phone_number ?? 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge-modern
+                                            @if($user->role == 'admin') badge-completed
+                                            @else badge-verified @endif">
                                             {{ ucfirst($user->role) }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $user->created_at ? $user->created_at->format('d/m/Y') : 'N/A' }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <a href="{{ route('admin.users.edit', $user) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
-                                        <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengguna ini?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900">Hapus</button>
-                                        </form>
+                                    <td class="text-gray-600">{{ $user->created_at ? $user->created_at->format('d/m/Y') : 'N/A' }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="{{ route('admin.users.edit', $user) }}" class="btn-modern btn-primary">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                                Edit
+                                            </a>
+                                            <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengguna ini?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-modern btn-danger">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                    </svg>
+                                                    Hapus
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -59,7 +92,7 @@
                     </table>
                 </div>
 
-                <div class="mt-4">
+                <div class="mt-6">
                     {{ $users->links() }}
                 </div>
             </div>

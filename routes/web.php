@@ -77,7 +77,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
         Route::get('/submissions', [UserController::class, 'getSubmissions'])->name('submissions');
         Route::get('/submissions/{id}', [UserController::class, 'getSubmission'])->name('submission.detail');
-        Route::post('/submissions', [UserController::class, 'storeSubmission'])->name('submission.store');
+        Route::post('/submissions', [UserController::class, 'storeSubmission'])->name('submit-application');
         Route::post('/submissions/{id}/upload-files', [UserController::class, 'uploadFilesToSubmission'])->name('submission.upload.files');
         Route::post('/submissions/{id}/resubmit', [UserController::class, 'resubmitSubmission'])->name('submission.resubmit');
         Route::get('/submissions/{submissionId}/files/{fileId}/download', [UserController::class, 'downloadUploadedFile'])->name('submission.file.download');
