@@ -21,6 +21,7 @@ class Payment extends Model
         'verified_by',
         'e_billing_path',
         'e_billing_filename',
+        'rejection_reason',
     ];
 
     public function user()

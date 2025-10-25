@@ -40,7 +40,7 @@ class UserController extends Controller
                 'pending' => $submissions->where('status', 'pending')->count(),
                 'in_process' => $submissions->whereIn('status', ['Diproses', 'verified', 'payment_pending', 'proof_uploaded', 'paid', 'processing'])->count(),
                 'completed' => $submissions->where('status', 'completed')->count(),
-                'rejected' => $submissions->where('status', 'rejected')->count(),
+                'rejected' => $submissions->whereIn('status', ['rejected', 'Ditolak'])->count(),
                 'total' => $submissions->count()
             ];
 
@@ -115,6 +115,9 @@ class UserController extends Controller
                         'type' => $guideline ? $guideline->type : 'non_pnbp', // Untuk filtering di frontend
                         'created_at' => $submission->created_at->format('d/m/Y'),
                         'rejection_note' => $submission->rejection_note ?: '',
+                        'can_resubmit' => in_array($submission->status, ['rejected', 'Ditolak']),
+                        'can_upload_files' => in_array($submission->status, ['rejected', 'Ditolak']),
+                        'can_upload_payment_proof' => $submission->payment && ($submission->payment->status === 'rejected' || $submission->payment->rejection_reason),
                         'payment' => $submission->payment ? [
                             'amount' => $submission->payment->amount,
                             'status' => $submission->payment->status,
@@ -197,8 +200,8 @@ class UserController extends Controller
                 'purpose' => Str::limit($submission->purpose ?: '', 500),
                 'start_date' => $this->safeDateFormat($submission->start_date, 'Y-m-d') ?: '',
                 'end_date' => $this->safeDateFormat($submission->end_date, 'Y-m-d') ?: '',
-                'status' => $submission->status ?: 'pending',
-                'status_label' => $this->getStatusLabel($submission->status ?: 'pending'),
+                'status' => $submission->status ?: 'Menunggu',
+                'status_label' => $this->getStatusLabel($submission->status ?: 'Menunggu'),
                 'created_at' => $this->safeDateFormat($submission->created_at, 'd/m/Y H:i') ?: now()->format('d/m/Y H:i'),
                 'payment' => null,
                 'uploaded_files' => [],
@@ -321,7 +324,7 @@ class UserController extends Controller
             // 1. Check recent submissions with same guideline in last 30 seconds
             $recentSubmission = Submission::where('user_id', $user->id)
                 ->where('guideline_id', $request->guideline_id)
-                ->where('status', 'pending')
+                ->where('status', 'Menunggu')
                 ->where('created_at', '>=', now()->subSeconds(30))
                 ->first();
 
@@ -397,7 +400,7 @@ class UserController extends Controller
                 'purpose' => $request->purpose,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
-                'status' => 'pending',
+                'status' => 'Menunggu',
                 'created_at' => now(),
                 'updated_at' => now()
             ];
@@ -516,6 +519,21 @@ class UserController extends Controller
 
             Log::info('Found payment record', ['payment_id' => $payment->id, 'status' => $payment->status]);
 
+            // Allow re-upload if payment was rejected OR if payment has rejection_reason OR if payment is pending
+            // This allows multiple re-upload cycles: rejected -> uploaded -> rejected -> uploaded, etc.
+            $canUpload = $payment->status === 'rejected' ||
+                !empty($payment->rejection_reason) ||
+                $payment->status === 'pending';
+
+            if (!$canUpload) {
+                throw new \Exception('Status pembayaran tidak memungkinkan upload ulang bukti');
+            }
+
+            Log::info('Payment validation passed', [
+                'payment_status' => $payment->status,
+                'has_rejection_reason' => !empty($payment->rejection_reason)
+            ]);
+
             DB::beginTransaction();
 
             // Check if file was uploaded
@@ -534,14 +552,16 @@ class UserController extends Controller
             $proofPath = $file->store('payments/' . $submission->id, 'public');
             Log::info('File stored at', ['path' => $proofPath]);
 
-            // Update payment
+            // Update payment - reset to pending status for admin verification
             $payment->update([
                 'payment_method' => $request->payment_method,
                 'payment_reference' => $request->payment_reference,
                 'payment_proof' => $proofPath,
-                'status' => 'proof_uploaded',
+                'status' => 'proof_uploaded', // Changed from 'pending' to 'proof_uploaded' for admin verification
                 'paid_at' => now(),
-                'rejection_reason' => null // Clear rejection reason after successful upload
+                'rejection_reason' => null, // Clear any previous rejection reason
+                'verified_at' => null,
+                'verified_by' => null
             ]);
 
             // Update submission status to indicate proof has been uploaded but needs admin verification
@@ -565,7 +585,7 @@ class UserController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Bukti pembayaran berhasil diupload'
+                'message' => 'Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.'
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation error uploading payment', ['errors' => $e->errors()]);
@@ -649,7 +669,10 @@ class UserController extends Controller
                         'created_at' => $submission->created_at->format('d/m/Y'),
                         'created_at_formatted' => $submission->created_at->format('d/m/Y H:i'),
                         'time_ago' => $submission->created_at->diffForHumans(),
-                        'progress_percentage' => $this->calculateProgressPercentage($submission->status)
+                        'progress_percentage' => $this->calculateProgressPercentage($submission->status),
+                        'can_resubmit' => in_array($submission->status, ['rejected', 'Ditolak']),
+                        'can_upload_files' => in_array($submission->status, ['rejected', 'Ditolak']),
+                        'can_upload_payment_proof' => $submission->payment && ($submission->payment->status === 'rejected' || $submission->payment->rejection_reason)
                     ];
                 });
 
@@ -881,12 +904,15 @@ class UserController extends Controller
                 ->firstOrFail();
 
             // Only allow uploading to rejected submissions
-            if ($submission->status !== 'rejected') {
+            if (!in_array($submission->status, ['rejected', 'Ditolak'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Hanya pengajuan yang ditolak yang dapat diupload ulang'
                 ], 403);
             }
+
+            // After user uploads files, show the submission back in admin panel
+            // The admin can then review the new files and either approve or reject again
 
             $uploadedFiles = $request->file('files', []);
             $documentNames = $request->input('document_names', []);
@@ -915,10 +941,13 @@ class UserController extends Controller
                 'actor_type' => 'user',
                 'action' => 'files_uploaded',
                 'title' => 'File Ditambahkan',
-                'description' => 'User menambahkan file baru ke pengajuan yang ditolak',
+                'description' => 'User menambahkan file baru ke pengajuan yang ditolak - menunggu review admin',
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
+
+            // Update status to indicate files have been uploaded and ready for admin review
+            $submission->update(['status' => 'Menunggu']);
 
             DB::commit();
 
@@ -955,7 +984,7 @@ class UserController extends Controller
                 ->firstOrFail();
 
             // Only allow resubmitting rejected submissions
-            if ($submission->status !== 'rejected') {
+            if (!in_array($submission->status, ['rejected', 'Ditolak'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Hanya pengajuan yang ditolak yang dapat dikirim ulang'
@@ -966,7 +995,7 @@ class UserController extends Controller
 
             // Update submission status
             $submission->update([
-                'status' => 'pending',
+                'status' => 'Menunggu',
                 'rejection_note' => null // Clear rejection note
             ]);
 
@@ -977,7 +1006,7 @@ class UserController extends Controller
                 'actor_type' => 'user',
                 'action' => 'resubmitted',
                 'title' => 'Pengajuan Dikirim Ulang',
-                'description' => 'User mengirim ulang pengajuan yang sebelumnya ditolak',
+                'description' => 'User mengirim ulang pengajuan yang sebelumnya ditolak - menunggu review admin',
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
@@ -1105,7 +1134,7 @@ class UserController extends Controller
             'paid' => 'Pembayaran Diterima',
             'processing' => 'Sedang Diproses',
             'completed' => 'Selesai',
-            'rejected' => 'Ditolak'
+            'Ditolak' => 'Ditolak'
         ];
 
         return $labels[$status] ?? 'Status Tidak Dikenal';
@@ -1124,7 +1153,7 @@ class UserController extends Controller
             'paid' => 60,
             'processing' => 80,
             'completed' => 100,
-            'rejected' => 0
+            'Ditolak' => 0
         ];
 
         return $progress[$status] ?? 0;

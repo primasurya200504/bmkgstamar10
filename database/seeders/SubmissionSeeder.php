@@ -114,7 +114,7 @@ class SubmissionSeeder extends Seeder
                 'start_date' => Carbon::now()->addDays(7),
                 'end_date' => Carbon::now()->addDays(14),
                 'purpose' => 'Penelitian cuaca dan iklim untuk disertasi doktor dengan fokus pada analisis pola curah hujan di wilayah Kalimantan Barat dalam 10 tahun terakhir. Data akan digunakan untuk memodelkan prediksi cuaca jangka panjang.',
-                'status' => 'pending',
+                'status' => 'Menunggu',
                 'created_at' => Carbon::now()->subHours(2),
                 'updated_at' => Carbon::now()->subHours(2)
             ]);
@@ -169,7 +169,7 @@ class SubmissionSeeder extends Seeder
             Payment::create([
                 'submission_id' => $submission2->id,
                 'amount' => $guideline2->fee,
-                'status' => 'pending'
+                'status' => 'Menunggu'
             ]);
 
             // Add histories for submission2

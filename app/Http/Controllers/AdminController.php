@@ -7,10 +7,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Models\Submission; // Untuk manajemen pengajuan
 use App\Models\Payment;    // Untuk eBilling
 use App\Models\Archive;    // Untuk pengarsipan
 use App\Models\User;       // Untuk manajemen pengguna
+use App\Models\SubmissionHistory; // Untuk history pengajuan
 
 class AdminController extends Controller
 {
@@ -30,6 +32,7 @@ class AdminController extends Controller
     {
         $submissions = Submission::with('user', 'files')
             ->whereNotIn('status', ['payment_pending', 'proof_uploaded', 'paid', 'verified', 'processing', 'completed', 'Selesai'])
+            ->whereNotIn('status', ['rejected', 'Ditolak']) // Hide rejected submissions until user uploads/resubmits
             ->paginate(10);
         return view('admin.submissions.index', compact('submissions'));
     }
@@ -175,17 +178,49 @@ class AdminController extends Controller
             'reject_reason' => 'required|string|max:500'
         ]);
 
-        $payment->update([
-            'status' => 'rejected',
-            'rejection_reason' => $request->reject_reason
-        ]);
+        $reject_reason = trim($request->reject_reason);
 
-        // Update submission status back to proof_uploaded so user can see rejection reason and upload new proof
-        if ($payment->submission) {
-            $payment->submission->update(['status' => 'proof_uploaded']);
+        if (empty($reject_reason)) {
+            return redirect()->back()->with('error', 'Alasan penolakan tidak boleh kosong');
         }
 
-        return redirect()->back()->with('success', 'Pembayaran berhasil ditolak!');
+        DB::beginTransaction();
+
+        try {
+            $payment->update([
+                'status' => 'rejected',
+                'rejection_reason' => $reject_reason,
+                'payment_proof' => null, // Clear the rejected proof so user can upload new one
+                'payment_method' => null,
+                'payment_reference' => null,
+                'paid_at' => null
+            ]);
+
+            // Update submission status back to proof_uploaded so user can see rejection reason and upload new proof
+            if ($payment->submission) {
+                $payment->submission->update(['status' => 'proof_uploaded']);
+
+                // Create history entry for payment rejection
+                SubmissionHistory::create([
+                    'submission_id' => $payment->submission->id,
+                    'actor_id' => Auth::id(),
+                    'actor_type' => 'admin',
+                    'action' => 'payment_rejected',
+                    'title' => 'Pembayaran Ditolak',
+                    'description' => 'Admin menolak bukti pembayaran dengan alasan: ' . $reject_reason,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Pembayaran berhasil ditolak! User dapat mengupload ulang bukti pembayaran.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error rejecting payment: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menolak pembayaran: ' . $e->getMessage());
+        }
     }
 
     // Manajemen Upload File Data Pengajuan (admin upload ke submission user)
@@ -315,15 +350,23 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
             'phone' => 'nullable|string|max:20',
+            'password' => 'nullable|confirmed|min:8',
             'role' => 'required|in:admin,user'
         ]);
 
-        $user->update([
+        $updateData = [
             'name' => $request->name,
             'email' => $request->email,
             'phone' => $request->phone,
             'role' => $request->role
-        ]);
+        ];
+
+        // Only update password if provided
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($request->password);
+        }
+
+        $user->update($updateData);
 
         return redirect()->route('admin.users')->with('success', 'Pengguna berhasil diperbarui!');
     }
