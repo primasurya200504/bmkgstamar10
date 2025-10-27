@@ -34,8 +34,13 @@
         }
 
         @keyframes moveDots {
-            from { background-position: 0 0; }
-            to { background-position: 200px 200px; }
+            from {
+                background-position: 0 0;
+            }
+
+            to {
+                background-position: 200px 200px;
+            }
         }
 
         .hero-section {
@@ -145,7 +150,9 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                BMKG Stasiun Meteorologi Maritim Pontianak adalah unit pelaksana teknis Badan Meteorologi, Klimatologi, dan Geofisika yang berfokus pada pengamatan dan pelayanan informasi meteorologi maritim di wilayah Pontianak dan sekitarnya.
+                BMKG Stasiun Meteorologi Maritim Pontianak adalah unit pelaksana teknis Badan Meteorologi, Klimatologi,
+                dan Geofisika yang berfokus pada pengamatan dan pelayanan informasi meteorologi maritim di wilayah
+                Pontianak dan sekitarnya.
             </div>
         </div>
 
@@ -155,7 +162,8 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                Anda dapat mengakses informasi cuaca terkini melalui website resmi BMKG (www.bmkg.go.id), aplikasi mobile BMKG, atau menghubungi stasiun meteorologi langsung di nomor telepon (0561) 734017.
+                Anda dapat mengakses informasi cuaca terkini melalui website resmi BMKG (www.bmkg.go.id), aplikasi
+                mobile BMKG, atau menghubungi stasiun meteorologi langsung di nomor telepon (0561) 734017.
             </div>
         </div>
 
@@ -165,7 +173,8 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                Kami menyediakan prakiraan cuaca, data maritim (gelombang laut, pasang surut), analisis iklim, peringatan dini bencana, konsultasi meteorologi, dan layanan pendidikan serta pelatihan.
+                Kami menyediakan prakiraan cuaca, data maritim (gelombang laut, pasang surut), analisis iklim,
+                peringatan dini bencana, konsultasi meteorologi, dan layanan pendidikan serta pelatihan.
             </div>
         </div>
 
@@ -175,7 +184,8 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                Peringatan dini cuaca ekstrem dapat diakses melalui website BMKG, aplikasi, media sosial resmi BMKG, atau sistem peringatan otomatis yang dikirim ke nomor telepon terdaftar.
+                Peringatan dini cuaca ekstrem dapat diakses melalui website BMKG, aplikasi, media sosial resmi BMKG,
+                atau sistem peringatan otomatis yang dikirim ke nomor telepon terdaftar.
             </div>
         </div>
 
@@ -185,7 +195,8 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                Ya, kami menyediakan layanan konsultasi cuaca untuk keperluan acara, perjalanan laut, atau kegiatan lainnya. Silakan hubungi kami untuk informasi lebih lanjut.
+                Ya, kami menyediakan layanan konsultasi cuaca untuk keperluan acara, perjalanan laut, atau kegiatan
+                lainnya. Silakan hubungi kami untuk informasi lebih lanjut.
             </div>
         </div>
 
@@ -205,7 +216,8 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                Anda dapat melaporkan melalui aplikasi BMKG, website resmi, atau menghubungi call center BMKG di 196. Pastikan menyertakan detail lokasi, waktu, dan deskripsi fenomena yang diamati.
+                Anda dapat melaporkan melalui aplikasi BMKG, website resmi, atau menghubungi call center BMKG di 196.
+                Pastikan menyertakan detail lokasi, waktu, dan deskripsi fenomena yang diamati.
             </div>
         </div>
 
@@ -215,7 +227,9 @@
                 <i class="fas fa-chevron-down faq-icon"></i>
             </div>
             <div class="faq-answer">
-                Ya, kami menyelenggarakan berbagai program pendidikan dan pelatihan tentang meteorologi, klimatologi, dan geofisika. Informasi jadwal dan pendaftaran dapat diakses melalui website BMKG atau menghubungi stasiun kami.
+                Ya, kami menyelenggarakan berbagai program pendidikan dan pelatihan tentang meteorologi, klimatologi,
+                dan geofisika. Informasi jadwal dan pendaftaran dapat diakses melalui website BMKG atau menghubungi
+                stasiun kami.
             </div>
         </div>
 
@@ -296,7 +310,8 @@
                 2. Klik menu "Riwayat Pengajuan" di sidebar<br>
                 3. Lihat status pengajuan di kolom "Status"<br>
                 4. Klik "Detail" untuk melihat informasi lengkap pengajuan<br>
-                5. Status yang mungkin: Menunggu Review, Diproses, Terverifikasi, Menunggu Pembayaran, Sudah Bayar, Sedang Diproses, Selesai, atau Ditolak<br>
+                5. Status yang mungkin: Menunggu Review, Diproses, Terverifikasi, Menunggu Pembayaran, Sudah Bayar,
+                Sedang Diproses, Selesai, atau Ditolak<br>
                 6. Untuk pengajuan yang ditolak, klik "Kesalahan" untuk melihat alasan penolakan
             </div>
         </div>
@@ -342,19 +357,25 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
                     <h4 class="text-xl font-bold mb-4">BMKG Stasiun Meteorologi Maritim Pontianak</h4>
-                    <p class="text-sm">Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan geofisika untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
+                    <p class="text-sm">Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan
+                        geofisika untuk mendukung keselamatan pelayaran dan kegiatan masyarakat di wilayah Pontianak.
+                    </p>
                 </div>
                 <div>
                     <h4 class="text-xl font-bold mb-4">Kontak Kami</h4>
-                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Stasiun Meteorologi Maritim Pontianak, Komplek Pelabuhan Dwikora Pontianak, Pontianak, Indonesia</p>
+                    <p class="text-sm"><i class="fas fa-map-marker-alt mr-2"></i>Stasiun Meteorologi Maritim
+                        Pontianak, Komplek Pelabuhan Dwikora Pontianak, Pontianak, Indonesia</p>
                     <p class="text-sm"><i class="fas fa-phone mr-2"></i>0561769906 / 08989111213</p>
                     <p class="text-sm"><i class="fas fa-envelope mr-2"></i>info@bmkg-pontianak.go.id</p>
                     <div class="mt-4">
                         <p class="text-sm font-semibold mb-2">Ikuti Kami:</p>
                         <div class="flex space-x-4">
-                            <a href="https://www.instagram.com/infobmkg.maritimkalbar/" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-instagram text-lg"></i></a>
-                            <a href="https://www.facebook.com/infobmkg.maritimkalbar" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-facebook text-lg"></i></a>
-                            <a href="https://twitter.com/bmkgmaritimpnk" target="_blank" class="text-white hover:text-blue-300"><i class="fab fa-twitter text-lg"></i></a>
+                            <a href="https://www.instagram.com/infobmkg.maritimkalbar/" target="_blank"
+                                class="text-white hover:text-blue-300"><i class="fab fa-instagram text-lg"></i></a>
+                            <a href="https://www.facebook.com/infobmkg.maritimkalbar" target="_blank"
+                                class="text-white hover:text-blue-300"><i class="fab fa-facebook text-lg"></i></a>
+                            <a href="https://twitter.com/bmkgmaritimpnk" target="_blank"
+                                class="text-white hover:text-blue-300"><i class="fab fa-twitter text-lg"></i></a>
                         </div>
                     </div>
                 </div>
@@ -365,12 +386,14 @@
                         <li><a href="/profil-kami" class="hover:text-blue-300">Profil Kami</a></li>
                         <li><a href="/faq" class="hover:text-blue-300">FAQ</a></li>
                         <li><a href="/login" class="hover:text-blue-300">Login</a></li>
-                        <li><a href="https://www.bmkg.go.id/" target="_blank" class="hover:text-blue-300">BMKG Pusat</a></li>
+                        <li><a href="https://www.bmkg.go.id/" target="_blank" class="hover:text-blue-300">BMKG
+                                Pusat</a></li>
                     </ul>
                 </div>
             </div>
             <div class="border-t border-white/20 mt-8 pt-4 text-center">
-                <p class="text-sm">© 2025 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved. Intern students of the Informatics Facilities Development (UBSI Kota Pontianak) program.</p>
+                <p class="text-sm">&copy; 2025 BMKG Stasiun Meteorologi Maritim Pontianak & Mahasiswa Universitas Bina
+                    Sarana Informatika Kota Pontianak</p>
             </div>
         </div>
     </footer>
@@ -382,4 +405,5 @@
         }
     </script>
 </body>
+
 </html>

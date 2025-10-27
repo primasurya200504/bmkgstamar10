@@ -519,14 +519,13 @@ class UserController extends Controller
 
             Log::info('Found payment record', ['payment_id' => $payment->id, 'status' => $payment->status]);
 
-            // Allow re-upload if payment was rejected OR if payment has rejection_reason OR if payment is pending
-            // This allows multiple re-upload cycles: rejected -> uploaded -> rejected -> uploaded, etc.
-            $canUpload = $payment->status === 'rejected' ||
-                !empty($payment->rejection_reason) ||
-                $payment->status === 'pending';
+            // Allow upload if payment is pending (initial upload), rejected (after rejection), proof_uploaded (re-upload), or has rejection_reason
+            // This allows multiple re-upload cycles and handles various payment states
+            $canUpload = in_array($payment->status, ['pending', 'rejected', 'proof_uploaded']) ||
+                !empty($payment->rejection_reason);
 
             if (!$canUpload) {
-                throw new \Exception('Status pembayaran tidak memungkinkan upload ulang bukti');
+                throw new \Exception('Status pembayaran tidak memungkinkan upload bukti pembayaran');
             }
 
             Log::info('Payment validation passed', [

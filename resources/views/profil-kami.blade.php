@@ -295,7 +295,8 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
                     <h4 class="text-xl font-bold mb-4">BMKG Stasiun Meteorologi Maritim Pontianak</h4>
-                    <p class="text-sm">Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan geofisika untuk mendukung keselamatan
+                    <p class="text-sm">Menyediakan layanan meteorologi yang mencakup informasi cuaca, iklim, dan
+                        geofisika untuk mendukung keselamatan
                         pelayaran dan kegiatan masyarakat di wilayah Pontianak.</p>
                 </div>
                 <div>
@@ -329,7 +330,8 @@
                 </div>
             </div>
             <div class="border-t border-white/20 mt-8 pt-4 text-center">
-                <p class="text-sm">© 2025 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved. Intern students of the Informatics Facilities Development (UBSI Kota Pontianak) program.</p>
+                <p class="text-sm">&copy; 2025 BMKG Stasiun Meteorologi Maritim Pontianak & Mahasiswa Universitas Bina
+                    Sarana Informatika Kota Pontianak</p>
             </div>
         </div>
     </footer>

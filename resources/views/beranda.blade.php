@@ -262,8 +262,8 @@
                 </div>
             </div>
             <div class="border-t border-white/20 mt-8 pt-4 text-center">
-                <p class="text-sm">© 2025 BMKG Stasiun Meteorologi Maritim Pontianak. All rights reserved. Intern
-                    students of the Informatics Facilities Development (UBSI Kota Pontianak) program.</p>
+                <p class="text-sm">&copy; 2025 BMKG Stasiun Meteorologi Maritim Pontianak & Mahasiswa Universitas Bina
+                    Sarana Informatika Kota Pontianak</p>
             </div>
         </div>
     </footer>
